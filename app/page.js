@@ -12,6 +12,8 @@ export default function Home() {
   const [tab, setTab] = useState('verificar');
   const [numero, setNumero] = useState('');
   const [serie, setSerie] = useState('');
+  const [fraccion, setFraccion] = useState('Fracción 1/10');
+  const [fechaSorteo, setFechaSorteo] = useState('');
   const [loteria, setLoteria] = useState('Lotería de Bogotá');
   const [resultado, setResultado] = useState(null);
   const [resultadosReales, setResultadosReales] = useState([]);
@@ -33,6 +35,7 @@ export default function Home() {
   useEffect(() => { cargarResultados(); checkUsuario(); }, []);
 
   async function checkUsuario() {
+    if (!supabase) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (user) { setUsuario(user); await cargarPerfil(user.id); await cargarBoletos(user.id); }
   }
@@ -71,6 +74,13 @@ export default function Home() {
     setResultado({ tipo: 'nada', titulo: 'Sin premio esta vez', premio: null, sorteo });
   }
 
+  function getLimite() {
+    if (!usuario) return LIMITE_GRATIS;
+    if (perfil?.plan === 'pro') return Infinity;
+    if (perfil?.plan === 'basico') return 10;
+    return LIMITE_GRATIS;
+  }
+
   async function guardarBoleto() {
     if (!usuario) { window.location.href = '/login'; return; }
     if (perfil?.plan !== 'basico' && perfil?.plan !== 'pro' && boletos.length >= LIMITE_GRATIS) { setMostrarPremium(true); return; }
@@ -78,10 +88,12 @@ export default function Home() {
     setGuardando(true);
     const sorteo = resultadosReales.find(r => r.loteria === loteria);
     const { data, error } = await supabase.from('boletos').insert({
-      user_id: usuario.id, loteria,
+      user_id: usuario.id,
+      loteria,
       numero: numero.padStart(4, '0'),
       serie: serie.toUpperCase(),
-      fecha_sorteo: sorteo?.fecha || null,
+      fraccion,
+      fecha_sorteo: fechaSorteo || sorteo?.fecha || null,
     }).select().single();
     if (!error && data) setBoletos(prev => [data, ...prev]);
     setGuardando(false);
@@ -101,13 +113,6 @@ export default function Home() {
     const nuevo = !perfil?.[key];
     await supabase.from('profiles').update({ [key]: nuevo }).eq('id', usuario.id);
     setPerfil(prev => ({ ...prev, [key]: nuevo }));
-  }
-
-  function getLimite() {
-    if (!usuario) return LIMITE_GRATIS;
-    if (perfil?.plan === 'pro') return Infinity;
-    if (perfil?.plan === 'basico') return 10;
-    return LIMITE_GRATIS;
   }
 
   const label = {
@@ -164,13 +169,7 @@ export default function Home() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Image
-                src="/logo.png"
-                alt="LotoCheck Logo"
-                width={44}
-                height={44}
-                style={{ borderRadius: 10, objectFit: 'cover' }}
-              />
+              <Image src="/logo.png" alt="LotoCheck Logo" width={44} height={44} style={{ borderRadius: 10, objectFit: 'cover' }} />
               <div>
                 <p style={{ color: '#fff', fontWeight: 700, fontSize: 20, lineHeight: 1 }}>LotoCheck</p>
                 <p style={{ color: '#C41230', fontSize: 12, fontWeight: 500, marginTop: 3 }}>Colombia</p>
@@ -240,6 +239,8 @@ export default function Home() {
 
               {/* Columna izquierda */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+                {/* Lotería */}
                 <div>
                   <span style={label}>Lotería</span>
                   <select value={loteria} onChange={e => { setLoteria(e.target.value); setResultado(null); }} style={{
@@ -253,21 +254,22 @@ export default function Home() {
                 {/* Botón escanear */}
                 <div
                   onClick={() => setMostrarEscaner(true)}
-                  style={{ border: '1.5px dashed #C41230', borderRadius: 16, padding: '32px 20px', textAlign: 'center', backgroundColor: '#140000', cursor: 'pointer', transition: 'background 0.2s' }}
+                  style={{ border: '1.5px dashed #C41230', borderRadius: 16, padding: '28px 20px', textAlign: 'center', backgroundColor: '#140000', cursor: 'pointer' }}
                 >
-                  <div style={{ width: 56, height: 56, backgroundColor: '#1E0000', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-                    <Camera size={26} color="#C41230" />
+                  <div style={{ width: 52, height: 52, backgroundColor: '#1E0000', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                    <Camera size={24} color="#C41230" />
                   </div>
-                  <p style={{ color: '#E0E0E0', fontWeight: 600, fontSize: 15 }}>Escanear boleto</p>
-                  <p style={{ color: '#555', fontSize: 13, marginTop: 6 }}>Toca para abrir la cámara</p>
+                  <p style={{ color: '#E0E0E0', fontWeight: 600, fontSize: 14 }}>Escanear boleto</p>
+                  <p style={{ color: '#555', fontSize: 12, marginTop: 5 }}>Toca para abrir la cámara</p>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ flex: 1, height: 1, backgroundColor: '#1E1E1E' }} />
-                  <span style={{ fontSize: 12, color: '#444' }}>o ingresa el número</span>
+                  <span style={{ fontSize: 12, color: '#444' }}>o ingresa manualmente</span>
                   <div style={{ flex: 1, height: 1, backgroundColor: '#1E1E1E' }} />
                 </div>
 
+                {/* Número y Serie */}
                 <div>
                   <span style={label}>Número — Serie</span>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -285,6 +287,32 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Fracción y Fecha */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <span style={label}>Fracción</span>
+                    <select
+                      value={fraccion}
+                      onChange={e => { setFraccion(e.target.value); setResultado(null); }}
+                      style={{ width: '100%', backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0E0E0', outline: 'none' }}
+                    >
+                      {[1,2,3,4,5,6,7,8,9,10].map(f => (
+                        <option key={f} style={{ backgroundColor: '#1A1A1A' }}>Fracción {f}/10</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <span style={label}>Fecha sorteo</span>
+                    <input
+                      type="date"
+                      value={fechaSorteo}
+                      onChange={e => { setFechaSorteo(e.target.value); setResultado(null); }}
+                      style={{ width: '100%', backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0E0E0', outline: 'none', colorScheme: 'dark' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Botón verificar */}
                 <button onClick={verificar} disabled={!numero || cargando} style={{
                   width: '100%', backgroundColor: '#C41230', border: 'none', borderRadius: 12,
                   padding: '16px', fontSize: 16, fontWeight: 700, color: '#fff', cursor: 'pointer',
@@ -294,6 +322,7 @@ export default function Home() {
                 }}>
                   <Search size={20} /> Verificar boleto
                 </button>
+
               </div>
 
               {/* Columna derecha — resultado */}
@@ -320,7 +349,9 @@ export default function Home() {
                     <div style={{ padding: 20, backgroundColor: '#161616', display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {[
                         { lbl: 'Tu número', val: `${numero.padStart(4,'0')} – ${serie.toUpperCase() || '—'}` },
+                        { lbl: 'Fracción', val: fraccion },
                         { lbl: 'Lotería', val: loteria },
+                        fechaSorteo && { lbl: 'Fecha sorteo', val: fechaSorteo },
                         resultado.sorteo && { lbl: 'Número ganador', val: `${resultado.sorteo.numero} – ${resultado.sorteo.serie}` },
                       ].filter(Boolean).map(({ lbl, val }) => (
                         <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, paddingBottom: 12, borderBottom: '1px solid #1E1E1E' }}>
@@ -328,6 +359,23 @@ export default function Home() {
                           <span style={{ color: '#E0E0E0', fontWeight: 600 }}>{val}</span>
                         </div>
                       ))}
+
+                      {/* Premio por fracción */}
+                      {resultado.premio && (
+                        <div style={{ backgroundColor: resultado.tipo === 'mayor' ? '#0d1f0d' : '#1a1500', borderRadius: 10, padding: '10px 14px' }}>
+                          <p style={{ color: '#555', fontSize: 12, marginBottom: 4 }}>Premio por tu fracción</p>
+                          <p style={{ color: resultado.tipo === 'mayor' ? '#4ade80' : '#facc15', fontSize: 20, fontWeight: 800 }}>
+                            {resultado.premio && fraccion ? (() => {
+                              const totalStr = resultado.premio.replace(/[$\.]/g, '');
+                              const total = parseInt(totalStr);
+                              const frac = parseInt(fraccion.split(' ')[1]?.split('/')[0] || '1');
+                              const porFraccion = Math.floor(total / 10) * frac;
+                              return '$' + porFraccion.toLocaleString('es-CO');
+                            })() : resultado.premio}
+                          </p>
+                        </div>
+                      )}
+
                       <button onClick={guardarBoleto} disabled={guardando} style={{
                         width: '100%', marginTop: 4, backgroundColor: 'transparent',
                         border: '1.5px solid #C41230', borderRadius: 10, padding: '13px',
@@ -413,13 +461,13 @@ export default function Home() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
                   {boletos.map((b) => (
                     <div key={b.id} style={card}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                        <p style={{ fontSize: 13, color: '#555' }}>{b.loteria}</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <p style={{ fontSize: 12, color: '#555' }}>{b.loteria}</p>
                         <button onClick={() => eliminarBoleto(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#333', padding: 4 }}>
-                          <Trash2 size={15} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                         <p style={{ fontSize: 22, fontWeight: 900, color: '#E0E0E0', letterSpacing: 3 }}>{b.numero} – {b.serie}</p>
                         <span style={{
                           fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20,
@@ -429,6 +477,7 @@ export default function Home() {
                           {b.resultado === 'pendiente' ? '⏳ Pendiente' : b.resultado === 'ganador' ? '🏆 Ganador' : '❌ Sin premio'}
                         </span>
                       </div>
+                      {b.fraccion && <p style={{ fontSize: 11, color: '#444' }}>{b.fraccion} · {b.fecha_sorteo || 'Sin fecha'}</p>}
                     </div>
                   ))}
                 </div>
@@ -451,7 +500,6 @@ export default function Home() {
           {tab === 'ajustes' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32 }}>
 
-              {/* Columna izquierda */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {!usuario ? (
                   <div style={{ textAlign: 'center', padding: '80px 0' }}>
@@ -465,7 +513,6 @@ export default function Home() {
                   </div>
                 ) : (
                   <>
-                    {/* Perfil */}
                     <div style={{ background: 'linear-gradient(135deg, #1a0000, #2d0000)', borderRadius: 16, padding: 20, border: '1px solid #2A0000' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                         <div style={{ width: 52, height: 52, backgroundColor: '#C41230', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
@@ -480,7 +527,6 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Planes */}
                     {perfil?.plan !== 'pro' && (
                       <button onClick={() => setMostrarPremium(true)} style={{
                         width: '100%', background: 'linear-gradient(135deg, #92400e, #78350f)',
@@ -504,7 +550,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Columna derecha — notificaciones */}
               {usuario && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 16, overflow: 'hidden' }}>
