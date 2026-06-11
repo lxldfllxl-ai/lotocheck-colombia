@@ -161,9 +161,9 @@ export default function HomePage() {
         <div style={{ background: 'linear-gradient(135deg, #064089 0%, #0a4a8f 100%)', padding: '20px 32px 16px', borderBottom: '1px solid #0d5a9f' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Image src="/logo.png" alt="NotiCheck Logo" width={44} height={44} style={{ borderRadius: 10, objectFit: 'cover' }} />
+              <Image src="/logo.png" alt="NotiLoto Logo" width={44} height={44} style={{ borderRadius: 10, objectFit: 'cover' }} />
               <div>
-                <p style={{ color: '#fff', fontWeight: 700, fontSize: 20, lineHeight: 1 }}>NotiCheck</p>
+                <p style={{ color: '#fff', fontWeight: 700, fontSize: 20, lineHeight: 1 }}>NotiLoto</p>
                 <p style={{ color: '#F59E0B', fontSize: 12, fontWeight: 500, marginTop: 3 }}>Colombia</p>
               </div>
             </div>
@@ -203,7 +203,7 @@ export default function HomePage() {
 
               {/* Hero */}
               <div style={{ textAlign: 'center' }}>
-                <p style={{ color: '#F59E0B', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bienvenido a NotiCheck</p>
+                <p style={{ color: '#F59E0B', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bienvenido a NotiLoto</p>
                 <p style={{ color: '#fff', fontSize: 40, fontWeight: 800, lineHeight: 1.1, marginBottom: 12 }}>Verifica tus loterías<br />y recibe noticias</p>
                 <p style={{ color: '#90CAF9', fontSize: 15, maxWidth: 600, margin: '0 auto', lineHeight: 1.6 }}>
                   La plataforma más confiable para verificar resultados de loterías colombianas. Escanea, verifica y recibe notificaciones en tiempo real.

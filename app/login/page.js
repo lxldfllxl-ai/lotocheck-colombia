@@ -134,9 +134,9 @@ export default function Login() {
         {/* Header */}
         <div style={{ background: 'linear-gradient(135deg, #064089, #0a4a8f)', padding: '28px 24px 24px', textAlign: 'center', borderBottom: '1px solid #0d5a9f' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-            <Image src="/logo.png" alt="NotiCheck" width={56} height={56} style={{ borderRadius: 14, objectFit: 'cover' }} />
+            <Image src="/logo.png" alt="NotiLoto" width={56} height={56} style={{ borderRadius: 14, objectFit: 'cover' }} />
           </div>
-          <p style={{ color: '#fff', fontWeight: 800, fontSize: 22, letterSpacing: -0.5 }}>NotiCheck</p>
+          <p style={{ color: '#fff', fontWeight: 800, fontSize: 22, letterSpacing: -0.5 }}>NotiLoto</p>
           <p style={{ color: '#F59E0B', fontSize: 12, fontWeight: 500, marginTop: 3 }}>Colombia</p>
           <p style={{ color: '#90CAF9', fontSize: 13, marginTop: 8 }}>
             {modo === 'login' ? 'Inicia sesión en tu cuenta' : 'Crea tu cuenta gratis'}
@@ -302,7 +302,7 @@ export default function Login() {
         {/* Footer */}
         <div style={{ padding: '0 24px 24px', textAlign: 'center' }}>
           <p style={{ fontSize: 11, color: '#64B5F6', lineHeight: 1.6 }}>
-            NotiCheck no vende boletos de lotería. Solo verificamos resultados.<br />
+            NotiLoto no vende boletos de lotería. Solo verificamos resultados.<br />
             Juega con responsabilidad. Línea de ayuda: <span style={{ color: '#F59E0B' }}>01800-522-422</span>
           </p>
         </div>

@@ -82,7 +82,7 @@ export default function ModalPremium({ onClose }) {
           borderBottom: '1px solid #0a5a9f',
         }}>
           <div>
-            <p style={{ color: '#fff', fontWeight: 700, fontSize: 24 }}>Planes de NotiCheck</p>
+            <p style={{ color: '#fff', fontWeight: 700, fontSize: 24 }}>Planes de NotiLoto</p>
             <p style={{ color: '#90CAF9', fontSize: 13, marginTop: 6 }}>Elige el plan perfecto para ti</p>
           </div>
           <button
@@ -198,7 +198,7 @@ export default function ModalPremium({ onClose }) {
         }}>
           <p style={{ color: '#64B5F6', fontSize: 12, lineHeight: 1.6 }}>
             💳 Los pagos se procesan a través de <strong>Wompi</strong>. Facturación segura e inmediata.<br />
-            Para más info: <span style={{ color: '#F59E0B' }}>soporte@noticheck.com</span>
+            Para más info: <span style={{ color: '#F59E0B' }}>soporte@notiloto.com</span>
           </p>
         </div>
 
