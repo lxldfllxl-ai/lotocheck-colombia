@@ -8,7 +8,7 @@ import Image from 'next/image';
 
 const LIMITE_GRATIS = 2;
 
-export default function Home() {
+export default function HomePage() {
   const [tab, setTab] = useState('inicio');
   const [numero, setNumero] = useState('');
   const [serie, setSerie] = useState('');
@@ -326,7 +326,7 @@ export default function Home() {
                 {!resultado ? (
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid #0d5a9f', borderRadius: 16, padding: 40, textAlign: 'center', backgroundColor: '#064089', minHeight: 300 }}>
                     <div style={{ width: 64, height: 64, backgroundColor: '#0a4a8f', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                      <Search size={28} color: '#0d5a9f' />
+                      <Search size={28} color="#0d5a9f" />
                     </div>
                     <p style={{ color: '#90CAF9', fontSize: 15, fontWeight: 500 }}>Ingresa un número para verificar</p>
                     <p style={{ color: '#64B5F6', fontSize: 13, marginTop: 8 }}>El resultado aparecerá aquí</p>
@@ -433,7 +433,7 @@ export default function Home() {
               ) : boletos.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '80px 0' }}>
                   <div style={{ width: 72, height: 72, backgroundColor: '#0a4a8f', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-                    <Ticket size={32} color: '#0d5a9f' />
+                    <Ticket size={32} color="#0d5a9f" />
                   </div>
                   <p style={{ color: '#90CAF9', fontSize: 16, fontWeight: 500 }}>No tienes boletos guardados</p>
                   <p style={{ color: '#64B5F6', fontSize: 13, marginTop: 8 }}>Verifica un boleto y guárdalo</p>

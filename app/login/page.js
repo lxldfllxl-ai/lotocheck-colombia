@@ -93,19 +93,19 @@ export default function Login() {
 
   const inputStyle = {
     width: '100%',
-    backgroundColor: '#1A1A1A',
-    border: '1px solid #2A2A2A',
+    backgroundColor: '#1a3a5f',
+    border: '1px solid #0d5a9f',
     borderRadius: 12,
     padding: '12px 14px 12px 42px',
     fontSize: 14,
-    color: '#E0E0E0',
+    color: '#90CAF9',
     outline: 'none',
   };
 
   const labelStyle = {
     fontSize: 11,
     fontWeight: 600,
-    color: '#555',
+    color: '#64B5F6',
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 6,
@@ -115,7 +115,7 @@ export default function Login() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#0A0A0A',
+      backgroundColor: '#064089',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -124,21 +124,21 @@ export default function Login() {
       <div style={{
         width: '100%',
         maxWidth: 420,
-        backgroundColor: '#111',
+        backgroundColor: '#0a3a7f',
         borderRadius: 24,
         overflow: 'hidden',
-        border: '1px solid #222',
+        border: '1px solid #0d5a9f',
         boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
       }}>
 
         {/* Header */}
-        <div style={{ background: 'linear-gradient(135deg, #1a0000 0%, #2d0000 100%)', padding: '28px 24px 24px', textAlign: 'center', borderBottom: '1px solid #2A0000' }}>
+        <div style={{ background: 'linear-gradient(135deg, #064089, #0a4a8f)', padding: '28px 24px 24px', textAlign: 'center', borderBottom: '1px solid #0d5a9f' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-            <Image src="/logo.png" alt="LotoCheck" width={56} height={56} style={{ borderRadius: 14, objectFit: 'cover' }} />
+            <Image src="/logo.png" alt="NotiCheck" width={56} height={56} style={{ borderRadius: 14, objectFit: 'cover' }} />
           </div>
-          <p style={{ color: '#fff', fontWeight: 800, fontSize: 22, letterSpacing: -0.5 }}>LotoCheck</p>
-          <p style={{ color: '#C41230', fontSize: 12, fontWeight: 500, marginTop: 3 }}>Colombia</p>
-          <p style={{ color: '#666', fontSize: 13, marginTop: 8 }}>
+          <p style={{ color: '#fff', fontWeight: 800, fontSize: 22, letterSpacing: -0.5 }}>NotiCheck</p>
+          <p style={{ color: '#F59E0B', fontSize: 12, fontWeight: 500, marginTop: 3 }}>Colombia</p>
+          <p style={{ color: '#90CAF9', fontSize: 13, marginTop: 8 }}>
             {modo === 'login' ? 'Inicia sesión en tu cuenta' : 'Crea tu cuenta gratis'}
           </p>
         </div>
@@ -151,9 +151,9 @@ export default function Login() {
               onClick={() => { setModo(t.id); setError(null); setMensaje(null); }}
               style={{
                 flex: 1, padding: '10px', fontSize: 13, fontWeight: 600,
-                border: 'none', borderBottom: `2px solid ${modo === t.id ? '#C41230' : '#1E1E1E'}`,
+                border: 'none', borderBottom: `2px solid ${modo === t.id ? '#F59E0B' : '#0d5a9f'}`,
                 backgroundColor: 'transparent',
-                color: modo === t.id ? '#C41230' : '#444',
+                color: modo === t.id ? '#F59E0B' : '#64B5F6',
                 cursor: 'pointer', transition: 'all 0.2s',
               }}
             >
@@ -171,7 +171,7 @@ export default function Login() {
               <div>
                 <span style={labelStyle}>Nombre completo</span>
                 <div style={{ position: 'relative' }}>
-                  <User size={16} color="#555" style={{ position: 'absolute', left: 14, top: 14 }} />
+                  <User size={16} color="#64B5F6" style={{ position: 'absolute', left: 14, top: 14 }} />
                   <input
                     type="text"
                     placeholder="Tu nombre completo"
@@ -187,7 +187,7 @@ export default function Login() {
             <div>
               <span style={labelStyle}>Correo electrónico</span>
               <div style={{ position: 'relative' }}>
-                <Mail size={16} color="#555" style={{ position: 'absolute', left: 14, top: 14 }} />
+                <Mail size={16} color="#64B5F6" style={{ position: 'absolute', left: 14, top: 14 }} />
                 <input
                   type="email"
                   placeholder="tu@correo.com"
@@ -202,7 +202,7 @@ export default function Login() {
             <div>
               <span style={labelStyle}>Contraseña {modo === 'registro' && '(mínimo 8 caracteres)'}</span>
               <div style={{ position: 'relative' }}>
-                <Lock size={16} color="#555" style={{ position: 'absolute', left: 14, top: 14 }} />
+                <Lock size={16} color="#64B5F6" style={{ position: 'absolute', left: 14, top: 14 }} />
                 <input
                   type={verPass ? 'text' : 'password'}
                   placeholder={modo === 'registro' ? 'Mínimo 8 caracteres' : 'Tu contraseña'}
@@ -212,7 +212,7 @@ export default function Login() {
                 />
                 <button
                   onClick={() => setVerPass(!verPass)}
-                  style={{ position: 'absolute', right: 14, top: 13, background: 'none', border: 'none', cursor: 'pointer', color: '#555' }}
+                  style={{ position: 'absolute', right: 14, top: 13, background: 'none', border: 'none', cursor: 'pointer', color: '#64B5F6' }}
                 >
                   {verPass ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -224,7 +224,7 @@ export default function Login() {
               <div>
                 <span style={labelStyle}>Fecha de nacimiento</span>
                 <div style={{ position: 'relative' }}>
-                  <Calendar size={16} color="#555" style={{ position: 'absolute', left: 14, top: 14 }} />
+                  <Calendar size={16} color="#64B5F6" style={{ position: 'absolute', left: 14, top: 14 }} />
                   <input
                     type="date"
                     value={form.fechaNacimiento}
@@ -233,7 +233,7 @@ export default function Login() {
                     style={{ ...inputStyle, colorScheme: 'dark' }}
                   />
                 </div>
-                <p style={{ fontSize: 11, color: '#555', marginTop: 5 }}>
+                <p style={{ fontSize: 11, color: '#64B5F6', marginTop: 5 }}>
                   🔞 Debes tener 18 años o más. Los juegos de azar están regulados por Coljuegos.
                 </p>
               </div>
@@ -246,29 +246,29 @@ export default function Login() {
                   onClick={() => setField('terminos', !form.terminos)}
                   style={{
                     width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
-                    border: `2px solid ${form.terminos ? '#C41230' : '#333'}`,
-                    backgroundColor: form.terminos ? '#C41230' : 'transparent',
+                    border: `2px solid ${form.terminos ? '#F59E0B' : '#0d5a9f'}`,
+                    backgroundColor: form.terminos ? '#F59E0B' : 'transparent',
                     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                 >
-                  {form.terminos && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                  {form.terminos && <span style={{ color: '#000', fontSize: 12, fontWeight: 700 }}>✓</span>}
                 </button>
-                <p style={{ fontSize: 12, color: '#555', lineHeight: 1.5 }}>
-                  Acepto los <span style={{ color: '#C41230', cursor: 'pointer' }}>términos y condiciones</span> y la <span style={{ color: '#C41230', cursor: 'pointer' }}>política de privacidad</span>. Confirmo que tengo 18 años o más.
+                <p style={{ fontSize: 12, color: '#90CAF9', lineHeight: 1.5 }}>
+                  Acepto los <span style={{ color: '#F59E0B', cursor: 'pointer' }}>términos y condiciones</span> y la <span style={{ color: '#F59E0B', cursor: 'pointer' }}>política de privacidad</span>. Confirmo que tengo 18 años o más.
                 </p>
               </div>
             )}
 
             {/* Error */}
             {error && (
-              <div style={{ backgroundColor: '#1E0000', border: '1px solid #3A0000', borderRadius: 10, padding: '10px 14px' }}>
+              <div style={{ backgroundColor: '#1a3a5f', border: '1px solid #0d5a9f', borderRadius: 10, padding: '10px 14px' }}>
                 <p style={{ color: '#ff6b6b', fontSize: 13 }}>⚠️ {error}</p>
               </div>
             )}
 
             {/* Mensaje éxito */}
             {mensaje && (
-              <div style={{ backgroundColor: '#0d1f0d', border: '1px solid #1a3a1a', borderRadius: 10, padding: '10px 14px' }}>
+              <div style={{ backgroundColor: '#0a3a2a', border: '1px solid #0d5a4f', borderRadius: 10, padding: '10px 14px' }}>
                 <p style={{ color: '#4ade80', fontSize: 13 }}>✅ {mensaje}</p>
               </div>
             )}
@@ -278,11 +278,11 @@ export default function Login() {
               onClick={handleSubmit}
               disabled={cargando}
               style={{
-                width: '100%', backgroundColor: '#C41230', border: 'none', borderRadius: 12,
-                padding: '14px', fontSize: 15, fontWeight: 700, color: '#fff',
+                width: '100%', backgroundColor: '#F59E0B', border: 'none', borderRadius: 12,
+                padding: '14px', fontSize: 15, fontWeight: 700, color: '#000',
                 cursor: cargando ? 'not-allowed' : 'pointer',
                 opacity: cargando ? 0.6 : 1,
-                boxShadow: '0 4px 24px rgba(196,18,48,0.35)',
+                boxShadow: '0 4px 24px rgba(245, 158, 11, 0.35)',
               }}
             >
               {cargando ? 'Cargando...' : modo === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
@@ -291,7 +291,7 @@ export default function Login() {
             {/* Volver a la app */}
             <button
               onClick={() => window.location.href = '/'}
-              style={{ width: '100%', backgroundColor: 'transparent', border: '1px solid #1E1E1E', borderRadius: 12, padding: '12px', fontSize: 13, color: '#444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              style={{ width: '100%', backgroundColor: 'transparent', border: '1px solid #0d5a9f', borderRadius: 12, padding: '12px', fontSize: 13, color: '#64B5F6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
               <ArrowLeft size={14} /> Volver sin iniciar sesión
             </button>
@@ -301,9 +301,9 @@ export default function Login() {
 
         {/* Footer */}
         <div style={{ padding: '0 24px 24px', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, color: '#333', lineHeight: 1.6 }}>
-            LotoCheck no vende boletos de lotería. Solo verificamos resultados.<br />
-            Juega con responsabilidad. Línea de ayuda: <span style={{ color: '#C41230' }}>01800-522-422</span>
+          <p style={{ fontSize: 11, color: '#64B5F6', lineHeight: 1.6 }}>
+            NotiCheck no vende boletos de lotería. Solo verificamos resultados.<br />
+            Juega con responsabilidad. Línea de ayuda: <span style={{ color: '#F59E0B' }}>01800-522-422</span>
           </p>
         </div>
 
