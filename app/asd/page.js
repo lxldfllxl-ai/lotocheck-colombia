@@ -67,39 +67,22 @@ export default function AdminLogin() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#0A0A0A',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px 16px',
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: 420,
-        backgroundColor: '#111',
-        borderRadius: 24,
-        overflow: 'hidden',
-        border: '1px solid #222',
-        boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
-      }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#0A0A0A', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
+      <div style={{ width: '100%', maxWidth: 420, backgroundColor: '#111', borderRadius: 24, overflow: 'hidden', border: '1px solid #222', boxShadow: '0 24px 80px rgba(0,0,0,0.8)' }}>
 
-        {/* Header */}
         <div style={{ background: 'linear-gradient(135deg, #1a0000 0%, #2d0000 100%)', padding: '28px 24px 24px', textAlign: 'center', borderBottom: '1px solid #2A0000' }}>
           <div style={{ width: 56, height: 56, backgroundColor: '#2A0000', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
             <Shield size={28} color="#C41230" />
           </div>
           <p style={{ color: '#fff', fontWeight: 800, fontSize: 20, letterSpacing: -0.5 }}>Panel Administrativo</p>
-          <p style={{ color: '#666', fontSize: 13, marginTop: 6 }}>Acceso restringido — NotiLoto</p>
+          <p style={{ color: '#666', fontSize: 13, marginTop: 6 }}>Acceso restringido - NotiLoto</p>
         </div>
 
-        {/* Formulario */}
         <div style={{ padding: '24px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             <div>
-              <span style={labelStyle}>Correo electrónico</span>
+              <span style={labelStyle}>Correo electronico</span>
               <div style={{ position: 'relative' }}>
                 <Mail size={16} color="#555" style={{ position: 'absolute', left: 14, top: 14 }} />
                 <input
@@ -113,12 +96,12 @@ export default function AdminLogin() {
             </div>
 
             <div>
-              <span style={labelStyle}>Contraseña</span>
+              <span style={labelStyle}>Contrasena</span>
               <div style={{ position: 'relative' }}>
                 <Lock size={16} color="#555" style={{ position: 'absolute', left: 14, top: 14 }} />
                 <input
                   type={verPass ? 'text' : 'password'}
-                  placeholder="Tu contraseña"
+                  placeholder="Tu contrasena"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   style={{ ...inputStyle, paddingRight: 44 }}
@@ -134,7 +117,7 @@ export default function AdminLogin() {
             </div>
 
             <div>
-              <span style={labelStyle}>Código de verificación (Google Authenticator)</span>
+              <span style={labelStyle}>Codigo de verificacion (Google Authenticator)</span>
               <div style={{ position: 'relative' }}>
                 <Shield size={16} color="#555" style={{ position: 'absolute', left: 14, top: 14 }} />
                 <input
@@ -151,7 +134,7 @@ export default function AdminLogin() {
 
             {error && (
               <div style={{ backgroundColor: '#1E0000', border: '1px solid #3A0000', borderRadius: 10, padding: '10px 14px' }}>
-                <p style={{ color: '#ff6b6b', fontSize: 13 }}>⚠️ {error}</p>
+                <p style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p>
               </div>
             )}
 
@@ -174,7 +157,7 @@ export default function AdminLogin() {
 
         <div style={{ padding: '0 24px 24px', textAlign: 'center' }}>
           <p style={{ fontSize: 11, color: '#333', lineHeight: 1.6 }}>
-            🔒 Este panel está protegido con autenticación de dos factores.<br />
+            Este panel esta protegido con autenticacion de dos factores.<br />
             Los intentos de acceso no autorizado son registrados.
           </p>
         </div>
