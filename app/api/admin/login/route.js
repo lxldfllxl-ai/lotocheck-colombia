@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { authenticator } from 'otplib';
+import * as OTPAuth from 'otplib';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
 import { crearTokenAdmin } from '../../../../lib/auth';
+
+const authenticator = OTPAuth.authenticator || OTPAuth.default?.authenticator;
 
 export async function POST(request) {
   try {
@@ -13,7 +15,7 @@ export async function POST(request) {
     }
 
     if (!supabaseAdmin) {
-      return NextResponse.json({ error: 'Error de configuración del servidor.' }, { status: 500 });
+      return NextResponse.json({ error: 'Error de configuración del servidor (Supabase).' }, { status: 500 });
     }
 
     // Buscar usuario admin
@@ -38,6 +40,10 @@ export async function POST(request) {
       return NextResponse.json({ error: '2FA no configurado para este usuario.' }, { status: 401 });
     }
 
+    if (!authenticator) {
+      return NextResponse.json({ error: 'Error de configuración del servidor (otplib).' }, { status: 500 });
+    }
+
     const codigoOk = authenticator.verify({ token: codigo, secret: admin.totp_secret });
     if (!codigoOk) {
       return NextResponse.json({ error: 'Código de verificación incorrecto.' }, { status: 401 });
@@ -55,13 +61,13 @@ export async function POST(request) {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
-      maxAge: 60 * 60 * 8, // 8 horas
+      maxAge: 60 * 60 * 8,
       path: '/',
     });
 
     return response;
   } catch (err) {
-    console.error('Error login admin:', err);
-    return NextResponse.json({ error: 'Error del servidor.' }, { status: 500 });
+    console.error('Error login admin:', err.message, err.stack);
+    return NextResponse.json({ error: 'Error del servidor: ' + err.message }, { status: 500 });
   }
 }
