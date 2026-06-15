@@ -1,7 +1,25 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { X, Check, Zap } from 'lucide-react';
 
 export default function ModalPremium({ onClose }) {
+  const [config, setConfig] = useState({
+    precio_basico: '$3.900/mes',
+    precio_pro: '$6.900/mes',
+    precio_premium: '$9.900/mes',
+    limite_basico: 10,
+    limite_pro: 25,
+  });
+
+  useEffect(() => {
+    fetch('/api/configuracion')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) setConfig(data);
+      })
+      .catch(() => {});
+  }, []);
+
   const planes = [
     {
       id: 'gratis',
@@ -14,31 +32,48 @@ export default function ModalPremium({ onClose }) {
         { txt: 'Notificaciones push', ok: true },
         { txt: 'Sin notificaciones por correo', ok: false },
         { txt: 'Anuncios en la app', ok: false },
-        { txt: 'Acceso a todas las loterías', ok: true },
+        { txt: 'Acceso a todas las loterias', ok: true },
       ],
-      botón: 'Plan actual',
+      boton: 'Plan actual',
       destacado: false,
     },
     {
       id: 'basico',
-      nombre: 'Básico',
-      precio: '$3.900/mes',
-      desc: 'Lo más popular',
+      nombre: 'Basico',
+      precio: config.precio_basico,
+      desc: 'Para empezar a ahorrar tiempo',
       features: [
-        { txt: 'Puedes guardar hasta 10 boletos pendientes', ok: true },
+        { txt: `Puedes guardar hasta ${config.limite_basico} boletos pendientes`, ok: true },
         { txt: 'Verificar resultados', ok: true },
         { txt: 'Notificaciones push', ok: true },
         { txt: 'Notificaciones por correo', ok: true },
         { txt: 'Sin anuncios', ok: true },
-        { txt: 'Acceso a todas las loterías', ok: true },
+        { txt: 'Acceso a todas las loterias', ok: true },
       ],
-      botón: 'Comenzar prueba gratis',
-      destacado: true,
+      boton: 'Comenzar prueba gratis',
+      destacado: false,
     },
     {
       id: 'pro',
       nombre: 'Pro',
-      precio: '$6.900/mes',
+      precio: config.precio_pro,
+      desc: 'Lo mas popular',
+      features: [
+        { txt: `Puedes guardar hasta ${config.limite_pro} boletos pendientes`, ok: true },
+        { txt: 'Verificar resultados', ok: true },
+        { txt: 'Notificaciones push', ok: true },
+        { txt: 'Notificaciones por correo', ok: true },
+        { txt: 'Sin anuncios', ok: true },
+        { txt: 'Acceso a todas las loterias', ok: true },
+        { txt: 'Soporte prioritario', ok: true },
+      ],
+      boton: 'Comenzar prueba gratis',
+      destacado: true,
+    },
+    {
+      id: 'premium',
+      nombre: 'Premium',
+      precio: config.precio_premium,
       desc: 'Para jugadores serios',
       features: [
         { txt: 'Boletos pendientes ilimitados', ok: true },
@@ -46,10 +81,10 @@ export default function ModalPremium({ onClose }) {
         { txt: 'Notificaciones push', ok: true },
         { txt: 'Notificaciones por correo', ok: true },
         { txt: 'Sin anuncios', ok: true },
-        { txt: 'Acceso a todas las loterías', ok: true },
+        { txt: 'Acceso a todas las loterias', ok: true },
         { txt: 'Soporte prioritario', ok: true },
       ],
-      botón: 'Comenzar prueba gratis',
+      boton: 'Comenzar prueba gratis',
       destacado: false,
     },
   ];
@@ -72,7 +107,7 @@ export default function ModalPremium({ onClose }) {
       <div
         style={{
           width: '100%',
-          maxWidth: 1100,
+          maxWidth: 1300,
           backgroundColor: '#064089',
           borderRadius: 24,
           border: '1px solid #0a5a9f',
@@ -122,7 +157,7 @@ export default function ModalPremium({ onClose }) {
         <div style={{
           padding: '24px',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
           gap: 20,
         }}>
           {planes.map(plan => (
@@ -167,9 +202,9 @@ export default function ModalPremium({ onClose }) {
               </div>
 
               <div style={{ marginBottom: 24 }}>
-                <p style={{ fontSize: 32, fontWeight: 800, color: '#fff' }}>{plan.precio}</p>
+                <p style={{ fontSize: 30, fontWeight: 800, color: '#fff' }}>{plan.precio}</p>
                 {plan.precio !== '$0' && (
-                  <p style={{ fontSize: 12, color: '#64B5F6', marginTop: 4 }}>Cancelación en cualquier momento</p>
+                  <p style={{ fontSize: 12, color: '#64B5F6', marginTop: 4 }}>Cancelacion en cualquier momento</p>
                 )}
               </div>
 
@@ -187,7 +222,7 @@ export default function ModalPremium({ onClose }) {
                   marginBottom: 24,
                 }}
               >
-                {plan.botón}
+                {plan.boton}
               </button>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -213,8 +248,8 @@ export default function ModalPremium({ onClose }) {
           textAlign: 'center',
         }}>
           <p style={{ color: '#64B5F6', fontSize: 12, lineHeight: 1.6 }}>
-            💳 Los pagos se procesan a través de <strong>Wompi</strong>. Facturación segura e inmediata.<br />
-            Para más info: <span style={{ color: '#F59E0B' }}>soporte@notiloto.com</span>
+            💳 Los pagos se procesan a traves de <strong>Wompi</strong>. Facturacion segura e inmediata.<br />
+            Para mas info: <span style={{ color: '#F59E0B' }}>soporte@notiloto.com</span>
           </p>
         </div>
 

@@ -107,7 +107,7 @@ export default function AdminPanel() {
         )}
 
         {vista === 'usuarios' && <PanelUsuarios />}
-        {vista === 'precios' && <p style={{ color: '#555' }}>Proximamente: editar precios.</p>}
+        {vista === 'precios' && <PanelPrecios />}
         {vista === 'resultados' && <p style={{ color: '#555' }}>Proximamente: editar resultados.</p>}
 
       </div>
@@ -304,6 +304,201 @@ function PanelUsuarios() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+function PanelPrecios() {
+  const [config, setConfig] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [mensaje, setMensaje] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => { cargarConfig(); }, []);
+
+  async function cargarConfig() {
+    setCargando(true);
+    try {
+      const res = await fetch('/api/configuracion');
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error);
+      } else {
+        setConfig(data);
+      }
+    } catch (e) {
+      setError('Error de conexion.');
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  async function guardar() {
+    setGuardando(true);
+    setMensaje(null);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/admin/configuracion', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          precio_basico: config.precio_basico,
+          precio_pro: config.precio_pro,
+          precio_premium: config.precio_premium,
+          limite_basico: config.limite_basico,
+          limite_pro: config.limite_pro,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Error al guardar.');
+      } else {
+        setMensaje('Precios actualizados correctamente.');
+        setConfig(data.configuracion);
+      }
+    } catch (e) {
+      setError('Error de conexion.');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  const inputStyle = {
+    width: '100%',
+    backgroundColor: '#0A0A0A',
+    border: '1px solid #2A2A2A',
+    borderRadius: 10,
+    padding: '11px 14px',
+    fontSize: 14,
+    color: '#E0E0E0',
+    outline: 'none',
+  };
+
+  const labelStyle = {
+    fontSize: 11, fontWeight: 600, color: '#555',
+    textTransform: 'uppercase', letterSpacing: 1,
+    marginBottom: 6, display: 'block',
+  };
+
+  if (cargando) return <p style={{ color: '#555', fontSize: 13 }}>Cargando configuracion...</p>;
+  if (!config) return <p style={{ color: '#ff6b6b', fontSize: 13 }}>{error || 'Error al cargar.'}</p>;
+
+  return (
+    <div>
+      <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Precios y planes</p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
+
+        {/* Gratis - fijo */}
+        <div style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 16, padding: 20, opacity: 0.6 }}>
+          <p style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Gratis</p>
+          <p style={{ color: '#555', fontSize: 12, marginBottom: 16 }}>Plan fijo, no editable</p>
+          <p style={{ color: '#888', fontSize: 13 }}>Precio: $0</p>
+          <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Limite: 2 boletos</p>
+        </div>
+
+        {/* Basico */}
+        <div style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 16, padding: 20 }}>
+          <p style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Basico</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <span style={labelStyle}>Precio mensual</span>
+              <input
+                type="text"
+                value={config.precio_basico}
+                onChange={e => setConfig({ ...config, precio_basico: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <span style={labelStyle}>Limite de boletos</span>
+              <input
+                type="number"
+                min="1"
+                value={config.limite_basico}
+                onChange={e => setConfig({ ...config, limite_basico: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Pro */}
+        <div style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 16, padding: 20 }}>
+          <p style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Pro</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <span style={labelStyle}>Precio mensual</span>
+              <input
+                type="text"
+                value={config.precio_pro}
+                onChange={e => setConfig({ ...config, precio_pro: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <span style={labelStyle}>Limite de boletos</span>
+              <input
+                type="number"
+                min="1"
+                value={config.limite_pro}
+                onChange={e => setConfig({ ...config, limite_pro: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Premium */}
+        <div style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 16, padding: 20 }}>
+          <p style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Premium</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <span style={labelStyle}>Precio mensual</span>
+              <input
+                type="text"
+                value={config.precio_premium}
+                onChange={e => setConfig({ ...config, precio_premium: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <span style={labelStyle}>Limite de boletos</span>
+              <input
+                type="text"
+                value="Ilimitado"
+                disabled
+                style={{ ...inputStyle, opacity: 0.5, cursor: 'not-allowed' }}
+              />
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {mensaje && (
+        <div style={{ backgroundColor: '#0d1f0d', border: '1px solid #1a3a1a', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+          <p style={{ color: '#4ade80', fontSize: 13 }}>{mensaje}</p>
+        </div>
+      )}
+      {error && (
+        <div style={{ backgroundColor: '#1E0000', border: '1px solid #3A0000', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+          <p style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p>
+        </div>
+      )}
+
+      <button
+        onClick={guardar}
+        disabled={guardando}
+        style={{
+          background: '#C41230', border: 'none', borderRadius: 10, padding: '13px 32px',
+          color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: guardando ? 0.6 : 1,
+        }}
+      >
+        {guardando ? 'Guardando...' : 'Guardar cambios'}
+      </button>
     </div>
   );
 }
