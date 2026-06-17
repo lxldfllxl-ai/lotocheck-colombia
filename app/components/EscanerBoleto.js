@@ -1,270 +1,260 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
-import { Camera, X, RotateCcw, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { BrowserMultiFormatReader } from '@zxing/library';
+import { Camera, X, RefreshCw, Check, AlertCircle } from 'lucide-react';
+
+// Intenta extraer numero, serie y fraccion de un texto crudo de codigo de barras/QR.
+// Como no hay un estandar unico entre operadores, probamos varios patrones comunes.
+function parsearCodigo(texto) {
+  const limpio = texto.trim();
+  const resultado = { numero: '', serie: '', fraccion: '', valorApuesta: '', crudo: limpio };
+
+  // Patron 1: JSON (algunos QR de chance digital traen JSON)
+  try {
+    const json = JSON.parse(limpio);
+    if (json.numero) resultado.numero = String(json.numero);
+    if (json.serie) resultado.serie = String(json.serie);
+    if (json.fraccion) resultado.fraccion = String(json.fraccion);
+    if (json.valor || json.apuesta) resultado.valorApuesta = String(json.valor || json.apuesta);
+    return resultado;
+  } catch { /* no es JSON, seguimos */ }
+
+  // Patron 2: separado por guiones o pipes, ej "4821-B34-05" o "4821|B34|05"
+  const separadoPorGuionOPipe = limpio.split(/[-|]/).map(s => s.trim()).filter(Boolean);
+  if (separadoPorGuionOPipe.length >= 2) {
+    resultado.numero = separadoPorGuionOPipe[0];
+    resultado.serie = separadoPorGuionOPipe[1] || '';
+    resultado.fraccion = separadoPorGuionOPipe[2] || '';
+    return resultado;
+  }
+
+  // Patron 3: solo digitos largos (codigo de barras numerico tipo Code128)
+  // Asumimos: primeros 4 = numero, siguientes 2-3 = serie, ultimo 1-2 = fraccion
+  if (/^\d+$/.test(limpio)) {
+    if (limpio.length >= 9) {
+      resultado.numero = limpio.slice(0, 4);
+      resultado.serie = limpio.slice(4, 7);
+      resultado.fraccion = limpio.slice(7);
+    } else if (limpio.length >= 4) {
+      resultado.numero = limpio.slice(0, 4);
+      resultado.serie = limpio.slice(4);
+    } else {
+      resultado.numero = limpio;
+    }
+    return resultado;
+  }
+
+  // No se pudo interpretar con ningun patron conocido: dejamos el numero vacio
+  // para que el usuario complete todo manualmente, pero guardamos el texto crudo
+  return resultado;
+}
 
 export default function EscanerBoleto({ onResultado, onCerrar }) {
-  const [fase, setFase] = useState('camara');
-  const [imagenPreview, setImagenPreview] = useState(null);
-  const [textoDetectado, setTextoDetectado] = useState({ numero: '', serie: '' });
-  const [progreso, setProgreso] = useState(0);
-  const [esMovil, setEsMovil] = useState(false);
-  const inputRef = useRef(null);
+  const [esMobile, setEsMobile] = useState(false);
+  const [fase, setFase] = useState('camara'); // camara | procesando | resultado | error
+  const [datos, setDatos] = useState({ numero: '', serie: '', fraccion: '', valorApuesta: '' });
+  const [textoCrudo, setTextoCrudo] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const videoRef = useRef(null);
+  const readerRef = useRef(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setEsMovil(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
-    }
+    setEsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
   }, []);
 
-  async function procesarImagen(file) {
-    setFase('procesando');
-    setProgreso(0);
-    try {
-      const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker('eng', 1, {
-        logger: m => {
-          if (m.status === 'recognizing text') {
-            setProgreso(Math.round(m.progress * 100));
-          }
-        }
-      });
-      await worker.setParameters({
-        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz- ',
-        tessedit_pageseg_mode: '6',
-      });
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
-      const resultado = extraerDatosBoleto(text);
-      setTextoDetectado(resultado);
-      setFase('resultado');
-    } catch (err) {
-      console.error('Error OCR:', err);
-      setFase('error');
-    }
-  }
+  useEffect(() => {
+    if (fase !== 'camara') return;
 
-  function extraerDatosBoleto(texto) {
-    console.log('Texto detectado:', texto);
-    const lineas = texto.split('\n').map(l => l.trim()).filter(Boolean);
-    let numero = '';
-    let serie = '';
-    for (const linea of lineas) {
-      const matchJunto = linea.match(/(\d{4})[\s\-]+([A-Z]{1,2}\d{2,3})/i);
-      if (matchJunto) {
-        numero = matchJunto[1];
-        serie = matchJunto[2].toUpperCase();
-        break;
+    const reader = new BrowserMultiFormatReader();
+    readerRef.current = reader;
+
+    reader.decodeFromVideoDevice(undefined, videoRef.current, (result, err) => {
+      if (result) {
+        const texto = result.getText();
+        manejarDeteccion(texto);
       }
-      const matchNumero = linea.match(/\b(\d{4})\b/);
-      if (matchNumero && !numero) numero = matchNumero[1];
-      const matchSerie = linea.match(/\b([A-Z]{1,2}\d{2,3})\b/i);
-      if (matchSerie && !serie) serie = matchSerie[1].toUpperCase();
-    }
-    return { numero, serie };
-  }
+      // err se dispara constantemente mientras no encuentra nada; lo ignoramos.
+    }).catch((err) => {
+      console.error('Error iniciando camara:', err);
+      setErrorMsg('No se pudo acceder a la camara. Verifica los permisos.');
+      setFase('error');
+    });
 
-  function handleArchivo(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setImagenPreview(url);
-    procesarImagen(file);
+    return () => {
+      try { reader.reset(); } catch {}
+    };
+  }, [fase]);
+
+  function manejarDeteccion(texto) {
+    setFase('procesando');
+    try { readerRef.current?.reset(); } catch {}
+
+    setTextoCrudo(texto);
+    const parseado = parsearCodigo(texto);
+    setDatos({
+      numero: parseado.numero,
+      serie: parseado.serie,
+      fraccion: parseado.fraccion,
+      valorApuesta: parseado.valorApuesta,
+    });
+    setFase('resultado');
   }
 
   function reintentar() {
+    setDatos({ numero: '', serie: '', fraccion: '', valorApuesta: '' });
+    setTextoCrudo('');
+    setErrorMsg('');
     setFase('camara');
-    setImagenPreview(null);
-    setTextoDetectado({ numero: '', serie: '' });
-    setProgreso(0);
   }
 
   function confirmar() {
-    onResultado(textoDetectado);
+    onResultado(datos);
     onCerrar();
   }
 
+  function handleArchivoSeleccionado(e) {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+    setFase('procesando');
+
+    const reader = new BrowserMultiFormatReader();
+    const img = new Image();
+    const url = URL.createObjectURL(archivo);
+    img.onload = () => {
+      reader.decodeFromImage(img)
+        .then(result => manejarDeteccion(result.getText()))
+        .catch(() => {
+          setErrorMsg('No se detecto ningun codigo en la imagen. Intenta con mejor luz o enfoque.');
+          setFase('error');
+        })
+        .finally(() => URL.revokeObjectURL(url));
+    };
+    img.src = url;
+  }
+
+  const overlay = {
+    position: 'fixed', inset: 0, zIndex: 9999,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: 16,
+  };
+  const contenedor = {
+    width: '100%', maxWidth: 480,
+    backgroundColor: '#064089', borderRadius: 20,
+    border: '1px solid #0d5a9f', overflow: 'hidden',
+  };
+  const header = {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '16px 20px', borderBottom: '1px solid #0d5a9f',
+  };
+  const inputStyle = {
+    width: '100%', backgroundColor: '#0a4a8f', border: '1px solid #0d5a9f',
+    borderRadius: 10, padding: '11px 14px', fontSize: 15, color: '#fff', outline: 'none',
+  };
+  const labelStyle = { fontSize: 11, fontWeight: 600, color: '#64B5F6', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block' };
+
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column' }}>
+    <div style={overlay}>
+      <div style={contenedor}>
+        <div style={header}>
+          <p style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>Escanear codigo de barras o QR</p>
+          <button onClick={onCerrar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#90CAF9' }}>
+            <X size={20} />
+          </button>
+        </div>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #1E1E1E' }}>
-        <p style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>Escanear boleto</p>
-        <button onClick={onCerrar} style={{ background: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 8, padding: '6px 12px', color: '#888', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-          <X size={14} /> Cerrar
-        </button>
-      </div>
-
-      {/* Contenido */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 24, overflowY: 'auto' }}>
-
-        {/* FASE: CAMARA */}
         {fase === 'camara' && (
-          <>
-            <div style={{ textAlign: 'center', marginBottom: 8 }}>
-              <p style={{ color: '#E0E0E0', fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-                {esMovil ? 'Toma una foto del boleto' : 'Sube una imagen del boleto'}
+          <div>
+            <div style={{ position: 'relative', backgroundColor: '#000', aspectRatio: '4/3' }}>
+              <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+              <div style={{
+                position: 'absolute', inset: '20%',
+                border: '2px solid #F59E0B', borderRadius: 12,
+                boxShadow: '0 0 0 9999px rgba(0,0,0,0.4)',
+              }} />
+            </div>
+            <div style={{ padding: 20 }}>
+              <p style={{ color: '#90CAF9', fontSize: 13, textAlign: 'center', marginBottom: 14 }}>
+                Apunta la camara al codigo de barras o QR del boleto
               </p>
-              <p style={{ color: '#555', fontSize: 13 }}>Enfoca el número y la serie claramente</p>
-            </div>
-
-            <div style={{ position: 'relative', width: 280, height: 160, border: '2px dashed #C41230', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A0000' }}>
-              <div style={{ position: 'absolute', top: -1, left: -1, width: 24, height: 24, borderTop: '3px solid #C41230', borderLeft: '3px solid #C41230', borderRadius: '4px 0 0 0' }} />
-              <div style={{ position: 'absolute', top: -1, right: -1, width: 24, height: 24, borderTop: '3px solid #C41230', borderRight: '3px solid #C41230', borderRadius: '0 4px 0 0' }} />
-              <div style={{ position: 'absolute', bottom: -1, left: -1, width: 24, height: 24, borderBottom: '3px solid #C41230', borderLeft: '3px solid #C41230', borderRadius: '0 0 0 4px' }} />
-              <div style={{ position: 'absolute', bottom: -1, right: -1, width: 24, height: 24, borderBottom: '3px solid #C41230', borderRight: '3px solid #C41230', borderRadius: '0 0 4px 0' }} />
-              <div style={{ textAlign: 'center' }}>
-                <Camera size={36} color="#C41230" style={{ marginBottom: 8 }} />
-                <p style={{ color: '#555', fontSize: 12 }}>Número y serie aquí</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 320 }}>
-              <input
-                ref={inputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleArchivo}
-                style={{ position: 'absolute', opacity: 0, width: 1, height: 1, pointerEvents: 'none' }}
-              />
-              <button
-                onClick={() => inputRef.current?.click()}
-                style={{ width: '100%', backgroundColor: '#C41230', border: 'none', borderRadius: 12, padding: '16px', fontSize: 15, fontWeight: 700, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: '0 4px 24px rgba(196,18,48,0.4)' }}
-              >
-                <Camera size={22} />
-                {esMovil ? 'Tomar foto' : 'Subir imagen del boleto'}
-              </button>
-
-              {esMovil && (
-                <>
-                  <input type="file" accept="image/*" onChange={handleArchivo} id="galeria-input" style={{ display: 'none' }} />
-                  <button
-                    onClick={() => document.getElementById('galeria-input').click()}
-                    style={{ width: '100%', backgroundColor: 'transparent', border: '1.5px solid #2A2A2A', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 600, color: '#888', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
-                  >
-                    Elegir de galería
-                  </button>
-                </>
+              {esMobile && (
+                <label style={{
+                  display: 'block', textAlign: 'center', backgroundColor: '#0a4a8f',
+                  border: '1px solid #0d5a9f', borderRadius: 10, padding: '12px',
+                  color: '#64B5F6', fontSize: 13, cursor: 'pointer',
+                }}>
+                  O selecciona una foto de tu galeria
+                  <input type="file" accept="image/*" capture="environment" onChange={handleArchivoSeleccionado} style={{ position: 'absolute', opacity: 0, width: 1, height: 1 }} />
+                </label>
               )}
             </div>
-
-            <div style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 12, padding: '12px 16px', maxWidth: 320, width: '100%' }}>
-              <p style={{ color: '#555', fontSize: 12, lineHeight: 1.6 }}>
-                💡 <strong style={{ color: '#888' }}>Consejos:</strong> Buena iluminación, fondo contrastante, enfoca bien el número. Si falla puedes ingresar manualmente.
-              </p>
-            </div>
-          </>
+          </div>
         )}
 
-        {/* FASE: PROCESANDO */}
         {fase === 'procesando' && (
-          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
-            {imagenPreview && (
-              <img src={imagenPreview} alt="Boleto" style={{ maxWidth: 300, maxHeight: 200, borderRadius: 12, objectFit: 'contain', border: '1px solid #2A2A2A' }} />
-            )}
-            <div>
-              <div style={{ width: 48, height: 48, border: '4px solid #1A1A1A', borderTop: '4px solid #C41230', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-              <p style={{ color: '#E0E0E0', fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Leyendo boleto...</p>
-              <p style={{ color: '#555', fontSize: 13 }}>Analizando imagen con OCR</p>
-            </div>
-            <div style={{ width: 280, backgroundColor: '#1A1A1A', borderRadius: 999, height: 6, overflow: 'hidden' }}>
-              <div style={{ height: '100%', backgroundColor: '#C41230', borderRadius: 999, width: `${progreso}%`, transition: 'width 0.3s ease' }} />
-            </div>
-            <p style={{ color: '#555', fontSize: 13 }}>{progreso}%</p>
+          <div style={{ padding: 60, textAlign: 'center' }}>
+            <RefreshCw size={32} color="#F59E0B" style={{ animation: 'spin 1s linear infinite', marginBottom: 16 }} />
+            <p style={{ color: '#90CAF9', fontSize: 14 }}>Leyendo codigo...</p>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
         )}
 
-        {/* FASE: RESULTADO */}
-        {fase === 'resultado' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, width: '100%', maxWidth: 360 }}>
-            {imagenPreview && (
-              <img src={imagenPreview} alt="Boleto" style={{ maxWidth: 300, maxHeight: 180, borderRadius: 12, objectFit: 'contain', border: '1px solid #2A2A2A' }} />
-            )}
-
-            <div style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 16, padding: 20, width: '100%' }}>
-              <p style={{ color: '#555', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
-                Datos detectados — edita si es necesario
-              </p>
-
-              <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-end' }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ color: '#555', fontSize: 11, marginBottom: 6 }}>NÚMERO</p>
-                  <input
-                    type="text"
-                    maxLength={4}
-                    placeholder="0000"
-                    value={textoDetectado.numero}
-                    onChange={e => setTextoDetectado(prev => ({ ...prev, numero: e.target.value }))}
-                    style={{ width: '100%', backgroundColor: '#111', border: `1.5px solid ${textoDetectado.numero ? '#C41230' : '#333'}`, borderRadius: 10, padding: '12px 8px', textAlign: 'center', fontSize: 24, fontWeight: 700, letterSpacing: 6, color: '#fff', outline: 'none' }}
-                  />
-                </div>
-                <div style={{ paddingBottom: 14, color: '#333', fontSize: 22 }}>–</div>
-                <div style={{ flex: 0.6 }}>
-                  <p style={{ color: '#555', fontSize: 11, marginBottom: 6 }}>SERIE</p>
-                  <input
-                    type="text"
-                    maxLength={3}
-                    placeholder="A00"
-                    value={textoDetectado.serie}
-                    onChange={e => setTextoDetectado(prev => ({ ...prev, serie: e.target.value.toUpperCase() }))}
-                    style={{ width: '100%', backgroundColor: '#111', border: `1.5px solid ${textoDetectado.serie ? '#C41230' : '#333'}`, borderRadius: 10, padding: '12px 8px', textAlign: 'center', fontSize: 20, fontWeight: 700, letterSpacing: 4, color: '#fff', outline: 'none' }}
-                  />
-                </div>
-              </div>
-
-              {(!textoDetectado.numero && !textoDetectado.serie) && (
-                <div style={{ backgroundColor: '#1E0000', border: '1px solid #3A0000', borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
-                  <p style={{ color: '#ff6b6b', fontSize: 13 }}>⚠️ No se detectaron datos. Ingrésalos manualmente arriba.</p>
-                </div>
-              )}
-
-              {(textoDetectado.numero || textoDetectado.serie) && (
-                <div style={{ backgroundColor: '#0d1f0d', border: '1px solid #1a3a1a', borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
-                  <p style={{ color: '#4ade80', fontSize: 13 }}>✅ Datos detectados. Revisa y corrige si es necesario.</p>
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, width: '100%' }}>
-              <button
-                onClick={reintentar}
-                style={{ flex: 1, backgroundColor: 'transparent', border: '1.5px solid #2A2A2A', borderRadius: 12, padding: '13px', fontSize: 14, fontWeight: 600, color: '#888', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-              >
-                <RotateCcw size={16} /> Reintentar
-              </button>
-              <button
-                onClick={confirmar}
-                disabled={!textoDetectado.numero}
-                style={{ flex: 1, backgroundColor: textoDetectado.numero ? '#C41230' : '#2A2A2A', border: 'none', borderRadius: 12, padding: '13px', fontSize: 14, fontWeight: 700, color: textoDetectado.numero ? '#fff' : '#555', cursor: textoDetectado.numero ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-              >
-                <Check size={16} /> Usar estos datos
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* FASE: ERROR */}
         {fase === 'error' && (
-          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-            <div style={{ width: 72, height: 72, backgroundColor: '#1E0000', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>❌</div>
-            <div>
-              <p style={{ color: '#E0E0E0', fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Error al procesar imagen</p>
-              <p style={{ color: '#555', fontSize: 13 }}>Intenta con mejor iluminación o ingresa el número manualmente</p>
-            </div>
-            <button onClick={reintentar} style={{ backgroundColor: '#C41230', border: 'none', borderRadius: 12, padding: '13px 32px', fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <RotateCcw size={16} /> Intentar de nuevo
+          <div style={{ padding: 40, textAlign: 'center' }}>
+            <AlertCircle size={32} color="#ff6b6b" style={{ marginBottom: 16 }} />
+            <p style={{ color: '#ff6b6b', fontSize: 14, marginBottom: 20 }}>{errorMsg}</p>
+            <button onClick={reintentar} style={{ backgroundColor: '#F59E0B', border: 'none', borderRadius: 10, padding: '12px 28px', color: '#000', fontWeight: 700, cursor: 'pointer' }}>
+              Intentar de nuevo
             </button>
           </div>
         )}
 
-      </div>
+        {fase === 'resultado' && (
+          <div style={{ padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, backgroundColor: '#0a3a2a', border: '1px solid #10B981', borderRadius: 10, padding: '10px 14px' }}>
+              <Check size={18} color="#10B981" />
+              <p style={{ color: '#10B981', fontSize: 13, fontWeight: 600 }}>Codigo detectado. Revisa y completa los datos.</p>
+            </div>
 
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <span style={labelStyle}>Numero {!datos.numero && '(no detectado, ingresalo)'}</span>
+                <input type="text" maxLength={4} value={datos.numero} onChange={e => setDatos({ ...datos, numero: e.target.value })} style={inputStyle} placeholder="0000" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <span style={labelStyle}>Serie {!datos.serie && '(opcional)'}</span>
+                  <input type="text" value={datos.serie} onChange={e => setDatos({ ...datos, serie: e.target.value })} style={inputStyle} placeholder="A00" />
+                </div>
+                <div>
+                  <span style={labelStyle}>Fraccion {!datos.fraccion && '(opcional)'}</span>
+                  <input type="text" value={datos.fraccion} onChange={e => setDatos({ ...datos, fraccion: e.target.value })} style={inputStyle} placeholder="1" />
+                </div>
+              </div>
+              <div>
+                <span style={labelStyle}>Valor de la apuesta (si aplica)</span>
+                <input type="text" value={datos.valorApuesta} onChange={e => setDatos({ ...datos, valorApuesta: e.target.value })} style={inputStyle} placeholder="$2.000" />
+              </div>
+
+              {textoCrudo && (
+                <details style={{ marginTop: 4 }}>
+                  <summary style={{ color: '#64B5F6', fontSize: 12, cursor: 'pointer' }}>Ver texto crudo detectado</summary>
+                  <p style={{ color: '#90CAF9', fontSize: 11, marginTop: 6, wordBreak: 'break-all', backgroundColor: '#0a3a5f', padding: 10, borderRadius: 8 }}>{textoCrudo}</p>
+                </details>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={reintentar} style={{ flex: 1, backgroundColor: 'transparent', border: '1px solid #0d5a9f', borderRadius: 10, padding: '13px', color: '#90CAF9', fontSize: 14, cursor: 'pointer' }}>
+                Escanear otro
+              </button>
+              <button onClick={confirmar} disabled={!datos.numero} style={{ flex: 1, backgroundColor: '#F59E0B', border: 'none', borderRadius: 10, padding: '13px', color: '#000', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: !datos.numero ? 0.4 : 1 }}>
+                Usar estos datos
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
