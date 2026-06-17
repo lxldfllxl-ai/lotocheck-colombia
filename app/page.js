@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Search, Calendar, Ticket, Settings, Home, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight } from 'lucide-react';
+import { Search, Calendar, Ticket, Settings, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import ModalPremium from './components/ModalPremium';
 import EscanerBoleto from './components/EscanerBoleto';
@@ -697,7 +697,7 @@ export default function Home() {
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#064089', borderTop: '1px solid #0d5a9f', display: 'flex', justifyContent: 'center', zIndex: 999 }}>
           <div style={{ width: '100%', maxWidth: 1800, display: 'flex', justifyContent: 'space-around' }}>
             {[
-              { id: 'inicio', label: 'Inicio', icon: Home },
+              { id: 'inicio', label: 'Inicio', icon: HomeIcon },
               { id: 'verificar', label: 'Verificar', icon: Search },
               { id: 'sorteos', label: 'Sorteos', icon: Calendar },
               { id: 'boletos', label: 'Boletos', icon: Ticket },
