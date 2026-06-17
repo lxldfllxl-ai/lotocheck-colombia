@@ -13,11 +13,10 @@ async function verificarToken(token) {
   }
 }
 
-export async function middleware(request) {
+export async function proxy(request) {
   const { pathname } = request.nextUrl;
   const method = request.method;
 
-  // Rutas publicas que no requieren proteccion
   const rutasPublicas = ['/asd', '/api/admin/login'];
   if (rutasPublicas.includes(pathname)) {
     return NextResponse.next();
@@ -37,11 +36,9 @@ export async function middleware(request) {
       return NextResponse.redirect(new URL('/asd', request.url));
     }
 
-    // Rutas siempre solo-admin, sin importar el metodo
     const rutasSiempreAdmin = ['/api/admin/configuracion', '/api/admin/usuarios', '/api/admin/crear-usuario'];
     const esSiempreAdmin = rutasSiempreAdmin.some(r => pathname.startsWith(r));
 
-    // /api/admin/juegos: GET es para admin y scraper, POST/PUT/DELETE solo admin
     const esJuegosEscritura = pathname.startsWith('/api/admin/juegos') && method !== 'GET';
 
     if ((esSiempreAdmin || esJuegosEscritura) && payload.rol !== 'admin') {
