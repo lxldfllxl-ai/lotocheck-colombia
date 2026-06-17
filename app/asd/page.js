@@ -14,7 +14,7 @@ export default function AdminLogin() {
     setError(null);
 
     if (!email || !password || !codigo) {
-      setError('Completa todos los campos.');
+      setError('Complet todos los campos.');
       return;
     }
     if (codigo.length !== 6) {
