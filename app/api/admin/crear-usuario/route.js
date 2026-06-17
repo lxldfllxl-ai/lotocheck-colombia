@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { verificarTokenAdmin } from '../../../../lib/auth';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { esquemaCrearUsuario, validar } from '../../../../lib/validaciones';
 
 function generarSecretoTOTP() {
   const base32chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -17,32 +16,12 @@ function generarSecretoTOTP() {
 
 export async function POST(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('admin_session')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+    const body = await request.json();
+    const validacion = validar(esquemaCrearUsuario, body);
+    if (!validacion.ok) {
+      return NextResponse.json({ error: validacion.error }, { status: 400 });
     }
-
-    const payload = await verificarTokenAdmin(token);
-
-    if (!payload || payload.rol !== 'admin') {
-      return NextResponse.json({ error: 'Solo administradores pueden crear usuarios.' }, { status: 403 });
-    }
-
-    const { email, password, rol } = await request.json();
-
-    if (!email || !password || !rol) {
-      return NextResponse.json({ error: 'Faltan datos.' }, { status: 400 });
-    }
-
-    if (!['admin', 'scraper'].includes(rol)) {
-      return NextResponse.json({ error: 'Rol invalido.' }, { status: 400 });
-    }
-
-    if (password.length < 8) {
-      return NextResponse.json({ error: 'La contrasena debe tener al menos 8 caracteres.' }, { status: 400 });
-    }
+    const { email, password, rol } = validacion.data;
 
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Error de configuracion del servidor.' }, { status: 500 });

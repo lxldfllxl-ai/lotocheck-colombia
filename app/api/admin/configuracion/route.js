@@ -1,20 +1,14 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verificarTokenAdmin } from '../../../../lib/auth';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { esquemaConfiguracion, validar } from '../../../../lib/validaciones';
 
 export async function PUT(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('admin_session')?.value;
-    const payload = await verificarTokenAdmin(token);
-    if (!payload || payload.rol !== 'admin') {
-      return NextResponse.json({ error: 'Acceso denegado.' }, { status: 403 });
-    }
-
     const body = await request.json();
-    console.log('Body recibido en PUT configuracion:', body);
+    const validacion = validar(esquemaConfiguracion, body);
+    if (!validacion.ok) return NextResponse.json({ error: validacion.error }, { status: 400 });
 
+    const datos = validacion.data;
     const update = {};
     const camposPermitidos = [
       'precio_basico', 'precio_pro', 'precio_premium',
@@ -23,18 +17,16 @@ export async function PUT(request) {
     ];
 
     camposPermitidos.forEach(campo => {
-      if (body[campo] !== undefined && body[campo] !== null) {
+      if (datos[campo] !== undefined && datos[campo] !== null) {
         if (campo.startsWith('limite_')) {
-          update[campo] = parseInt(body[campo]) || 0;
+          update[campo] = parseInt(datos[campo]) || 0;
         } else {
-          update[campo] = body[campo];
+          update[campo] = datos[campo];
         }
       }
     });
 
     update.updated_at = new Date().toISOString();
-
-    console.log('Update final a enviar a Supabase:', update);
 
     const { data, error } = await supabaseAdmin
       .from('configuracion')
@@ -42,11 +34,7 @@ export async function PUT(request) {
       .eq('id', 1)
       .select().single();
 
-    if (error) {
-      console.error('Error de Supabase:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, configuracion: data });
   } catch (err) {
     console.error('Error en PUT configuracion:', err);

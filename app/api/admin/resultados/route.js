@@ -1,52 +1,27 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verificarTokenAdmin } from '../../../../lib/auth';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { esquemaResultado, validar } from '../../../../lib/validaciones';
 
 export async function POST(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('admin_session')?.value;
-    const payload = await verificarTokenAdmin(token);
-    if (!payload) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
-
     const body = await request.json();
-    const { loteria, numero, serie, premio, fecha, secos, signo, quinta } = body;
+    const validacion = validar(esquemaResultado, body);
+    if (!validacion.ok) return NextResponse.json({ error: validacion.error }, { status: 400 });
+    const { loteria, numero, serie, premio, fecha, secos, signo, quinta } = validacion.data;
 
-    if (!loteria || !numero) return NextResponse.json({ error: 'Faltan datos obligatorios.' }, { status: 400 });
-    if (!fecha) return NextResponse.json({ error: 'La fecha del sorteo es obligatoria para el historico.' }, { status: 400 });
-
-    // 1. Actualizar/crear el "ultimo resultado" (usado por la app para mostrar en Sorteos)
     const { data: ultimo, error: errorUltimo } = await supabaseAdmin
       .from('resultados')
       .upsert({
-        loteria,
-        numero,
-        serie: serie || '',
-        premio: premio || '',
-        fecha,
-        secos: secos || [],
-        signo: signo || '',
-        quinta: quinta || '',
+        loteria, numero, serie, premio, fecha, secos, signo, quinta,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'loteria' })
       .select().single();
 
     if (errorUltimo) return NextResponse.json({ error: errorUltimo.message }, { status: 500 });
 
-    // 2. Guardar tambien en el historico (para verificar boletos de fechas pasadas)
     const { error: errorHistorico } = await supabaseAdmin
       .from('sorteos_historico')
-      .upsert({
-        loteria,
-        numero,
-        serie: serie || '',
-        premio: premio || '',
-        fecha,
-        secos: secos || [],
-        signo: signo || '',
-        quinta: quinta || '',
-      }, { onConflict: 'loteria,fecha' });
+      .upsert({ loteria, numero, serie, premio, fecha, secos, signo, quinta }, { onConflict: 'loteria,fecha' });
 
     if (errorHistorico) return NextResponse.json({ error: errorHistorico.message }, { status: 500 });
 
