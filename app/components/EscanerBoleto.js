@@ -4,7 +4,7 @@ import { Camera, X, RefreshCw, Check, AlertCircle, Image as ImageIcon } from 'lu
 
 export default function EscanerBoleto({ onResultado, onCerrar }) {
   const [esMobile, setEsMobile] = useState(false);
-  const [fase, setFase] = useState('camara'); // camara | procesando | resultado | error
+  const [fase, setFase] = useState('camara');
   const [datos, setDatos] = useState({ loteria: '', numero: '', serie: '', fraccion: '', valorApuesta: '', fechaSorteo: '', signo: '' });
   const [confianza, setConfianza] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -13,6 +13,12 @@ export default function EscanerBoleto({ onResultado, onCerrar }) {
   const streamRef = useRef(null);
   const canvasRef = useRef(null);
   const inputArchivoRef = useRef(null);
+
+  const COLOR_FONDO = '#0B1F3A';
+  const COLOR_CARD = '#142A4A';
+  const COLOR_BORDE = '#1A3A5F';
+  const COLOR_ACENTO = '#FFD700';
+  const COLOR_TEXTO_SEC = '#8FB3E0';
 
   useEffect(() => {
     setEsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
@@ -130,26 +136,26 @@ export default function EscanerBoleto({ onResultado, onCerrar }) {
   };
   const contenedor = {
     width: '100%', maxWidth: 480, maxHeight: '92vh', overflowY: 'auto',
-    backgroundColor: '#064089', borderRadius: 20,
-    border: '1px solid #0d5a9f',
+    backgroundColor: COLOR_FONDO, borderRadius: 20,
+    border: `1px solid ${COLOR_BORDE}`,
   };
   const header = {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '16px 20px', borderBottom: '1px solid #0d5a9f',
-    position: 'sticky', top: 0, backgroundColor: '#064089', zIndex: 10,
+    padding: '16px 20px', borderBottom: `1px solid ${COLOR_BORDE}`,
+    position: 'sticky', top: 0, backgroundColor: COLOR_FONDO, zIndex: 10,
   };
   const inputStyle = {
-    width: '100%', backgroundColor: '#0a4a8f', border: '1px solid #0d5a9f',
+    width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`,
     borderRadius: 10, padding: '11px 14px', fontSize: 15, color: '#fff', outline: 'none',
   };
-  const labelStyle = { fontSize: 11, fontWeight: 600, color: '#64B5F6', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block' };
+  const labelStyle = { fontSize: 11, fontWeight: 600, color: COLOR_TEXTO_SEC, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block' };
 
   return (
     <div style={overlay}>
       <div style={contenedor}>
         <div style={header}>
           <p style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>Escanear boleto con IA</p>
-          <button onClick={() => { detenerCamara(); onCerrar(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#90CAF9' }}>
+          <button onClick={() => { detenerCamara(); onCerrar(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_TEXTO_SEC }}>
             <X size={20} />
           </button>
         </div>
@@ -160,25 +166,25 @@ export default function EscanerBoleto({ onResultado, onCerrar }) {
               <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               <div style={{
                 position: 'absolute', inset: '10%',
-                border: '2px dashed #F59E0B', borderRadius: 12,
+                border: `2px dashed ${COLOR_ACENTO}`, borderRadius: 12,
               }} />
             </div>
             <canvas ref={canvasRef} style={{ display: 'none' }} />
             <div style={{ padding: 20 }}>
-              <p style={{ color: '#90CAF9', fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+              <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
                 Encuadra el boleto completo dentro del marco, con buena luz
               </p>
               <button onClick={capturarFoto} style={{
-                width: '100%', backgroundColor: '#F59E0B', border: 'none', borderRadius: 12,
-                padding: '15px', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer',
+                width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12,
+                padding: '15px', color: '#1A1500', fontWeight: 700, fontSize: 15, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10,
               }}>
                 <Camera size={18} /> Tomar foto
               </button>
               <label style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                backgroundColor: 'transparent', border: '1px solid #0d5a9f', borderRadius: 12,
-                padding: '13px', color: '#64B5F6', fontSize: 14, cursor: 'pointer',
+                backgroundColor: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 12,
+                padding: '13px', color: COLOR_TEXTO_SEC, fontSize: 14, cursor: 'pointer',
               }}>
                 <ImageIcon size={16} /> Elegir de la galeria
                 <input ref={inputArchivoRef} type="file" accept="image/*" onChange={handleArchivoSeleccionado} style={{ position: 'absolute', opacity: 0, width: 1, height: 1 }} />
@@ -192,8 +198,8 @@ export default function EscanerBoleto({ onResultado, onCerrar }) {
             {previewUrl && (
               <img src={previewUrl} alt="Boleto capturado" style={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 12, marginBottom: 20, opacity: 0.6 }} />
             )}
-            <RefreshCw size={28} color="#F59E0B" style={{ animation: 'spin 1s linear infinite', marginBottom: 14 }} />
-            <p style={{ color: '#90CAF9', fontSize: 14 }}>Leyendo boleto con inteligencia artificial...</p>
+            <RefreshCw size={28} color={COLOR_ACENTO} style={{ animation: 'spin 1s linear infinite', marginBottom: 14 }} />
+            <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14 }}>Leyendo boleto con inteligencia artificial...</p>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
         )}
@@ -202,7 +208,7 @@ export default function EscanerBoleto({ onResultado, onCerrar }) {
           <div style={{ padding: 40, textAlign: 'center' }}>
             <AlertCircle size={32} color="#ff6b6b" style={{ marginBottom: 16 }} />
             <p style={{ color: '#ff6b6b', fontSize: 14, marginBottom: 20 }}>{errorMsg}</p>
-            <button onClick={reintentar} style={{ backgroundColor: '#F59E0B', border: 'none', borderRadius: 10, padding: '12px 28px', color: '#000', fontWeight: 700, cursor: 'pointer' }}>
+            <button onClick={reintentar} style={{ backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '12px 28px', color: '#1A1500', fontWeight: 700, cursor: 'pointer' }}>
               Intentar de nuevo
             </button>
           </div>
@@ -212,12 +218,12 @@ export default function EscanerBoleto({ onResultado, onCerrar }) {
           <div style={{ padding: 20 }}>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18,
-              backgroundColor: confianza === 'alta' ? '#0a3a2a' : confianza === 'media' ? '#1a3a1a' : '#3a2a0a',
-              border: `1px solid ${confianza === 'alta' ? '#10B981' : confianza === 'media' ? '#F59E0B' : '#F59E0B'}`,
+              backgroundColor: confianza === 'alta' ? '#0a3a2a' : '#3a2f0a',
+              border: `1px solid ${confianza === 'alta' ? '#10B981' : COLOR_ACENTO}`,
               borderRadius: 10, padding: '10px 14px',
             }}>
-              <Check size={18} color={confianza === 'alta' ? '#10B981' : '#F59E0B'} />
-              <p style={{ color: confianza === 'alta' ? '#10B981' : '#F59E0B', fontSize: 13, fontWeight: 600 }}>
+              <Check size={18} color={confianza === 'alta' ? '#10B981' : COLOR_ACENTO} />
+              <p style={{ color: confianza === 'alta' ? '#10B981' : COLOR_ACENTO, fontSize: 13, fontWeight: 600 }}>
                 Boleto leido (confianza {confianza || 'media'}). Revisa y corrige si es necesario.
               </p>
             </div>
@@ -258,10 +264,10 @@ export default function EscanerBoleto({ onResultado, onCerrar }) {
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button onClick={reintentar} style={{ flex: 1, backgroundColor: 'transparent', border: '1px solid #0d5a9f', borderRadius: 10, padding: '13px', color: '#90CAF9', fontSize: 14, cursor: 'pointer' }}>
+              <button onClick={reintentar} style={{ flex: 1, backgroundColor: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 10, padding: '13px', color: COLOR_TEXTO_SEC, fontSize: 14, cursor: 'pointer' }}>
                 Tomar otra foto
               </button>
-              <button onClick={confirmar} disabled={!datos.numero} style={{ flex: 1, backgroundColor: '#F59E0B', border: 'none', borderRadius: 10, padding: '13px', color: '#000', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: !datos.numero ? 0.4 : 1 }}>
+              <button onClick={confirmar} disabled={!datos.numero} style={{ flex: 1, backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '13px', color: '#1A1500', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: !datos.numero ? 0.4 : 1 }}>
                 Usar estos datos
               </button>
             </div>

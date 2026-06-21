@@ -12,6 +12,12 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [mensaje, setMensaje] = useState(null);
 
+  const COLOR_FONDO = '#0B1F3A';
+  const COLOR_CARD = '#142A4A';
+  const COLOR_BORDE = '#1A3A5F';
+  const COLOR_ACENTO = '#FFD700';
+  const COLOR_TEXTO_SEC = '#8FB3E0';
+
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -93,8 +99,6 @@ export default function Login() {
             ? 'Este correo ya esta registrado. Intenta iniciar sesion.'
             : authError.message);
         } else {
-          // Guardamos tambien la fecha de nacimiento directamente en profiles,
-          // ya que el trigger de creacion de perfil puede no incluirla.
           if (signUpData?.user?.id) {
             await supabase.from('profiles').update({
               fecha_nacimiento: form.fechaNacimiento,
@@ -125,8 +129,8 @@ export default function Login() {
 
   const inputStyle = {
     width: '100%',
-    backgroundColor: '#0a4a8f',
-    border: '1px solid #0d5a9f',
+    backgroundColor: COLOR_CARD,
+    border: `1px solid ${COLOR_BORDE}`,
     borderRadius: 12,
     padding: '12px 14px 12px 42px',
     fontSize: 14,
@@ -137,222 +141,235 @@ export default function Login() {
   const labelStyle = {
     fontSize: 11,
     fontWeight: 600,
-    color: '#64B5F6',
+    color: COLOR_TEXTO_SEC,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: 6,
     display: 'block',
   };
 
+  const autofillFixCss = `
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+      -webkit-text-fill-color: #E0F2FE !important;
+      -webkit-box-shadow: 0 0 0px 1000px ${COLOR_CARD} inset !important;
+      transition: background-color 5000s ease-in-out 0s;
+    }
+  `;
+
   if (verificandoSesion) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#064089', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: '#64B5F6', fontSize: 14 }}>Cargando...</p>
+      <div style={{ minHeight: '100vh', backgroundColor: COLOR_FONDO, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14 }}>Cargando...</p>
       </div>
     );
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#064089',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px 16px',
-    }}>
+    <>
+      <style>{autofillFixCss}</style>
       <div style={{
-        width: '100%',
-        maxWidth: 420,
-        backgroundColor: '#0a3a7f',
-        borderRadius: 24,
-        overflow: 'hidden',
-        border: '1px solid #0d5a9f',
-        boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
+        minHeight: '100vh',
+        backgroundColor: COLOR_FONDO,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px 16px',
       }}>
+        <div style={{
+          width: '100%',
+          maxWidth: 420,
+          backgroundColor: '#0D2240',
+          borderRadius: 24,
+          overflow: 'hidden',
+          border: `1px solid ${COLOR_BORDE}`,
+          boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
+        }}>
 
-        <div style={{ background: 'linear-gradient(135deg, #064089 0%, #0a4a8f 100%)', padding: '28px 24px 24px', textAlign: 'center', borderBottom: '1px solid #0d5a9f' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-            <Image src="/logo.png" alt="NotiLoto" width={56} height={56} style={{ borderRadius: 14, objectFit: 'cover' }} />
+          <div style={{ background: `linear-gradient(135deg, ${COLOR_FONDO} 0%, ${COLOR_CARD} 100%)`, padding: '28px 24px 24px', textAlign: 'center', borderBottom: `1px solid ${COLOR_BORDE}` }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+              <Image src="/logo.png" alt="NotiLoto" width={56} height={56} style={{ borderRadius: 14, objectFit: 'cover' }} />
+            </div>
+            <p style={{ color: '#fff', fontWeight: 800, fontSize: 22, letterSpacing: -0.5 }}>NotiLoto</p>
+            <p style={{ color: COLOR_ACENTO, fontSize: 12, fontWeight: 500, marginTop: 3 }}>Colombia</p>
+            <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, marginTop: 8 }}>
+              {modo === 'login' ? 'Inicia sesion en tu cuenta' : 'Crea tu cuenta gratis'}
+            </p>
           </div>
-          <p style={{ color: '#fff', fontWeight: 800, fontSize: 22, letterSpacing: -0.5 }}>NotiLoto</p>
-          <p style={{ color: '#F59E0B', fontSize: 12, fontWeight: 500, marginTop: 3 }}>Colombia</p>
-          <p style={{ color: '#90CAF9', fontSize: 13, marginTop: 8 }}>
-            {modo === 'login' ? 'Inicia sesion en tu cuenta' : 'Crea tu cuenta gratis'}
-          </p>
-        </div>
 
-        <div style={{ display: 'flex', padding: '16px 24px 0' }}>
-          {[{ id: 'login', label: 'Iniciar sesion' }, { id: 'registro', label: 'Registrarse' }].map(t => (
-            <button
-              key={t.id}
-              onClick={() => { setModo(t.id); setError(null); setMensaje(null); }}
-              style={{
-                flex: 1, padding: '10px', fontSize: 13, fontWeight: 600,
-                border: 'none', borderBottom: `2px solid ${modo === t.id ? '#F59E0B' : '#0a4a8f'}`,
-                backgroundColor: 'transparent',
-                color: modo === t.id ? '#F59E0B' : '#64B5F6',
-                cursor: 'pointer', transition: 'all 0.2s',
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+          <div style={{ display: 'flex', padding: '16px 24px 0' }}>
+            {[{ id: 'login', label: 'Iniciar sesion' }, { id: 'registro', label: 'Registrarse' }].map(t => (
+              <button
+                key={t.id}
+                onClick={() => { setModo(t.id); setError(null); setMensaje(null); }}
+                style={{
+                  flex: 1, padding: '10px', fontSize: 13, fontWeight: 600,
+                  border: 'none', borderBottom: `2px solid ${modo === t.id ? COLOR_ACENTO : COLOR_CARD}`,
+                  backgroundColor: 'transparent',
+                  color: modo === t.id ? COLOR_ACENTO : COLOR_TEXTO_SEC,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-        <form onSubmit={e => { e.preventDefault(); handleSubmit(); }} style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={e => { e.preventDefault(); handleSubmit(); }} style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-            {modo === 'registro' && (
+              {modo === 'registro' && (
+                <div>
+                  <span style={labelStyle}>Nombre completo</span>
+                  <div style={{ position: 'relative' }}>
+                    <User size={16} color={COLOR_TEXTO_SEC} style={{ position: 'absolute', left: 14, top: 14 }} />
+                    <input
+                      type="text"
+                      name="name"
+                      autoComplete="name"
+                      placeholder="Tu nombre completo"
+                      value={form.nombre}
+                      onChange={e => setField('nombre', e.target.value)}
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
-                <span style={labelStyle}>Nombre completo</span>
+                <span style={labelStyle}>Correo electronico</span>
                 <div style={{ position: 'relative' }}>
-                  <User size={16} color="#64B5F6" style={{ position: 'absolute', left: 14, top: 14 }} />
+                  <Mail size={16} color={COLOR_TEXTO_SEC} style={{ position: 'absolute', left: 14, top: 14 }} />
                   <input
-                    type="text"
-                    name="name"
-                    autoComplete="name"
-                    placeholder="Tu nombre completo"
-                    value={form.nombre}
-                    onChange={e => setField('nombre', e.target.value)}
+                    type="email"
+                    name="email"
+                    autoComplete="username"
+                    placeholder="tu@correo.com"
+                    value={form.email}
+                    onChange={e => setField('email', e.target.value)}
                     style={inputStyle}
                   />
                 </div>
               </div>
-            )}
 
-            <div>
-              <span style={labelStyle}>Correo electronico</span>
-              <div style={{ position: 'relative' }}>
-                <Mail size={16} color="#64B5F6" style={{ position: 'absolute', left: 14, top: 14 }} />
-                <input
-                  type="email"
-                  name="email"
-                  autoComplete="username"
-                  placeholder="tu@correo.com"
-                  value={form.email}
-                  onChange={e => setField('email', e.target.value)}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-
-            <div>
-              <span style={labelStyle}>Contrasena {modo === 'registro' && '(minimo 8 caracteres)'}</span>
-              <div style={{ position: 'relative' }}>
-                <Lock size={16} color="#64B5F6" style={{ position: 'absolute', left: 14, top: 14 }} />
-                <input
-                  type={verPass ? 'text' : 'password'}
-                  name="password"
-                  autoComplete={modo === 'registro' ? 'new-password' : 'current-password'}
-                  placeholder={modo === 'registro' ? 'Minimo 8 caracteres' : 'Tu contrasena'}
-                  value={form.password}
-                  onChange={e => setField('password', e.target.value)}
-                  style={{ ...inputStyle, paddingRight: 44 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setVerPass(!verPass)}
-                  style={{ position: 'absolute', right: 14, top: 13, background: 'none', border: 'none', cursor: 'pointer', color: '#64B5F6' }}
-                >
-                  {verPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              {modo === 'login' && (
-                <p style={{ textAlign: 'right', marginTop: 8 }}>
-                  <a href="/recuperar" style={{ fontSize: 12, color: '#F59E0B', textDecoration: 'none' }}>
-                    Olvidaste tu contrasena?
-                  </a>
-                </p>
-              )}
-            </div>
-
-            {modo === 'registro' && (
               <div>
-                <span style={labelStyle}>Fecha de nacimiento</span>
+                <span style={labelStyle}>Contrasena {modo === 'registro' && '(minimo 8 caracteres)'}</span>
                 <div style={{ position: 'relative' }}>
-                  <Calendar size={16} color="#64B5F6" style={{ position: 'absolute', left: 14, top: 14 }} />
+                  <Lock size={16} color={COLOR_TEXTO_SEC} style={{ position: 'absolute', left: 14, top: 14 }} />
                   <input
-                    type="date"
-                    name="bday"
-                    autoComplete="bday"
-                    value={form.fechaNacimiento}
-                    onChange={e => setField('fechaNacimiento', e.target.value)}
-                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
-                    style={{ ...inputStyle, colorScheme: 'dark' }}
+                    type={verPass ? 'text' : 'password'}
+                    name="password"
+                    autoComplete={modo === 'registro' ? 'new-password' : 'current-password'}
+                    placeholder={modo === 'registro' ? 'Minimo 8 caracteres' : 'Tu contrasena'}
+                    value={form.password}
+                    onChange={e => setField('password', e.target.value)}
+                    style={{ ...inputStyle, paddingRight: 44 }}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setVerPass(!verPass)}
+                    style={{ position: 'absolute', right: 14, top: 13, background: 'none', border: 'none', cursor: 'pointer', color: COLOR_TEXTO_SEC }}
+                  >
+                    {verPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
-                <p style={{ fontSize: 11, color: '#64B5F6', marginTop: 5 }}>
-                  Debes tener 18 anos o mas. Los juegos de azar estan regulados por Coljuegos.
-                </p>
+                {modo === 'login' && (
+                  <p style={{ textAlign: 'right', marginTop: 8 }}>
+                    <a href="/recuperar" style={{ fontSize: 12, color: COLOR_ACENTO, textDecoration: 'none' }}>
+                      Olvidaste tu contrasena?
+                    </a>
+                  </p>
+                )}
               </div>
-            )}
 
-            {modo === 'registro' && (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => setField('terminos', !form.terminos)}
-                  style={{
-                    width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
-                    border: `2px solid ${form.terminos ? '#F59E0B' : '#0d5a9f'}`,
-                    backgroundColor: form.terminos ? '#F59E0B' : 'transparent',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  {form.terminos && <span style={{ color: '#000', fontSize: 12, fontWeight: 700 }}>✓</span>}
-                </button>
-                <p style={{ fontSize: 12, color: '#90CAF9', lineHeight: 1.5 }}>
-                  Acepto los <span style={{ color: '#F59E0B', cursor: 'pointer' }}>terminos y condiciones</span> y la <span style={{ color: '#F59E0B', cursor: 'pointer' }}>politica de privacidad</span>. Confirmo que tengo 18 anos o mas.
-                </p>
-              </div>
-            )}
+              {modo === 'registro' && (
+                <div>
+                  <span style={labelStyle}>Fecha de nacimiento</span>
+                  <div style={{ position: 'relative' }}>
+                    <Calendar size={16} color={COLOR_TEXTO_SEC} style={{ position: 'absolute', left: 14, top: 14 }} />
+                    <input
+                      type="date"
+                      name="bday"
+                      autoComplete="bday"
+                      value={form.fechaNacimiento}
+                      onChange={e => setField('fechaNacimiento', e.target.value)}
+                      max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                      style={{ ...inputStyle, colorScheme: 'dark' }}
+                    />
+                  </div>
+                  <p style={{ fontSize: 11, color: COLOR_TEXTO_SEC, marginTop: 5 }}>
+                    Debes tener 18 anos o mas. Los juegos de azar estan regulados por Coljuegos.
+                  </p>
+                </div>
+              )}
 
-            {error && (
-              <div style={{ backgroundColor: '#1E0000', border: '1px solid #3A0000', borderRadius: 10, padding: '10px 14px' }}>
-                <p style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p>
-              </div>
-            )}
+              {modo === 'registro' && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setField('terminos', !form.terminos)}
+                    style={{
+                      width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
+                      border: `2px solid ${form.terminos ? COLOR_ACENTO : COLOR_BORDE}`,
+                      backgroundColor: form.terminos ? COLOR_ACENTO : 'transparent',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    {form.terminos && <span style={{ color: '#1A1500', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                  </button>
+                  <p style={{ fontSize: 12, color: COLOR_TEXTO_SEC, lineHeight: 1.5 }}>
+                    Acepto los <span style={{ color: COLOR_ACENTO, cursor: 'pointer' }}>terminos y condiciones</span> y la <span style={{ color: COLOR_ACENTO, cursor: 'pointer' }}>politica de privacidad</span>. Confirmo que tengo 18 anos o mas.
+                  </p>
+                </div>
+              )}
 
-            {mensaje && (
-              <div style={{ backgroundColor: '#0a3a2a', border: '1px solid #10B981', borderRadius: 10, padding: '10px 14px' }}>
-                <p style={{ color: '#10B981', fontSize: 13 }}>{mensaje}</p>
-              </div>
-            )}
+              {error && (
+                <div style={{ backgroundColor: '#1E0000', border: '1px solid #3A0000', borderRadius: 10, padding: '10px 14px' }}>
+                  <p style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p>
+                </div>
+              )}
 
-            <button
-              type="submit"
-              disabled={cargando}
-              style={{
-                width: '100%', backgroundColor: '#F59E0B', border: 'none', borderRadius: 12,
-                padding: '14px', fontSize: 15, fontWeight: 700, color: '#000',
-                cursor: cargando ? 'not-allowed' : 'pointer',
-                opacity: cargando ? 0.6 : 1,
-                boxShadow: '0 4px 24px rgba(245,158,11,0.25)',
-              }}
-            >
-              {cargando ? 'Cargando...' : modo === 'login' ? 'Iniciar sesion' : 'Crear cuenta'}
-            </button>
+              {mensaje && (
+                <div style={{ backgroundColor: '#0a3a2a', border: '1px solid #10B981', borderRadius: 10, padding: '10px 14px' }}>
+                  <p style={{ color: '#10B981', fontSize: 13 }}>{mensaje}</p>
+                </div>
+              )}
 
-            <button
-              type="button"
-              onClick={() => window.location.href = '/'}
-              style={{ width: '100%', backgroundColor: 'transparent', border: '1px solid #0d5a9f', borderRadius: 12, padding: '12px', fontSize: 13, color: '#64B5F6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-            >
-              <ArrowLeft size={14} /> Volver sin iniciar sesion
-            </button>
+              <button
+                type="submit"
+                disabled={cargando}
+                style={{
+                  width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12,
+                  padding: '14px', fontSize: 15, fontWeight: 700, color: '#1A1500',
+                  cursor: cargando ? 'not-allowed' : 'pointer',
+                  opacity: cargando ? 0.6 : 1,
+                  boxShadow: '0 4px 24px rgba(255,215,0,0.25)',
+                }}
+              >
+                {cargando ? 'Cargando...' : modo === 'login' ? 'Iniciar sesion' : 'Crear cuenta'}
+              </button>
 
+              <button
+                type="button"
+                onClick={() => window.location.href = '/'}
+                style={{ width: '100%', backgroundColor: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px', fontSize: 13, color: COLOR_TEXTO_SEC, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                <ArrowLeft size={14} /> Volver sin iniciar sesion
+              </button>
+
+            </div>
+          </form>
+
+          <div style={{ padding: '0 24px 24px', textAlign: 'center' }}>
+            <p style={{ fontSize: 11, color: COLOR_TEXTO_SEC, lineHeight: 1.6 }}>
+              NotiLoto no vende boletos de loteria. Solo verificamos resultados.<br />
+              Juega con responsabilidad. Linea de ayuda: <span style={{ color: COLOR_ACENTO }}>01800-522-422</span>
+            </p>
           </div>
-        </form>
 
-        <div style={{ padding: '0 24px 24px', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, color: '#64B5F6', lineHeight: 1.6 }}>
-            NotiLoto no vende boletos de loteria. Solo verificamos resultados.<br />
-            Juega con responsabilidad. Linea de ayuda: <span style={{ color: '#F59E0B' }}>01800-522-422</span>
-          </p>
         </div>
-
       </div>
-    </div>
+    </>
   );
 }
