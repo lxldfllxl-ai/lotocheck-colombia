@@ -43,7 +43,7 @@ export default function ModalPremium({ onClose }) {
       nombre: config.nombre_gratis || 'Gratis',
       precio: '$0',
       precioSufijo: '',
-      limite: config.limite_gratis ? `Guarda hasta ${config.limite_gratis} numeros pendientes` : '2 boletos guardados',
+      limite: config.limite_gratis ? `${config.limite_gratis} números pendientes` : '2 boletos guardados',
       beneficios: ['Notificaciones push', 'Verificacion ilimitada', 'Con anuncios'],
       destacado: false,
     },
@@ -52,7 +52,7 @@ export default function ModalPremium({ onClose }) {
       nombre: config.nombre_basico || 'Basico',
       precio: formatearPrecio(config.precio_basico),
       precioSufijo: '/mes',
-      limite: config.limite_basico ? `Guarda hasta ${config.limite_basico} numeros pendientes` : '10 boletos guardados',
+      limite: config.limite_basico ? `${config.limite_basico} números pendientes` : '10 boletos guardados',
       beneficios: ['Notificaciones push y correo', 'Sin anuncios', 'Verificacion ilimitada'],
       destacado: false,
     },
@@ -61,7 +61,7 @@ export default function ModalPremium({ onClose }) {
       nombre: config.nombre_pro || 'Pro',
       precio: formatearPrecio(config.precio_pro),
       precioSufijo: '/mes',
-      limite: config.limite_pro ? `Guarda hasta ${config.limite_pro} numeros pendientes` : '25 boletos guardados',
+      limite: config.limite_pro ? `${config.limite_pro} números pendientes` : '25 boletos guardados',
       beneficios: ['Notificaciones push y correo', 'Sin anuncios', 'Soporte prioritario'],
       destacado: true,
     },
@@ -100,7 +100,7 @@ export default function ModalPremium({ onClose }) {
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <Crown size={32} color={COLOR_ACENTO} style={{ marginBottom: 10 }} />
           <p style={{ color: '#fff', fontSize: 24, fontWeight: 800 }}>Elige tu plan</p>
-          <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, marginTop: 6 }}>Guarda mas Números y recibe notificaciones sin perderte ningun resultado.</p>
+          <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, marginTop: 6 }}>Guarda mas números y recibe notificaciones sin perderte ningun resultado.</p>
         </div>
 
         {cargando ? (
