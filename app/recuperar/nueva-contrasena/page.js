@@ -14,7 +14,6 @@ export default function NuevaContrasena() {
   const [sesionValida, setSesionValida] = useState(null);
 
   useEffect(() => {
-    // Supabase establece una sesion temporal al seguir el enlace del correo
     supabase.auth.getSession().then(({ data }) => {
       setSesionValida(!!data.session);
     });
@@ -30,11 +29,17 @@ export default function NuevaContrasena() {
 
     if (authError) {
       setError('No se pudo actualizar la contrasena. El enlace puede haber expirado.');
-    } else {
-      setListo(true);
-      setTimeout(() => { window.location.href = '/login'; }, 2500);
+      setCargando(false);
+      return;
     }
+
+    // Cerramos la sesion temporal que creo el enlace de recuperacion,
+    // para que el usuario tenga que iniciar sesion de nuevo con su nueva contrasena
+    await supabase.auth.signOut();
+
+    setListo(true);
     setCargando(false);
+    setTimeout(() => { window.location.href = '/login'; }, 2500);
   }
 
   const inputStyle = {
@@ -65,7 +70,7 @@ export default function NuevaContrasena() {
           ) : listo ? (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
               <p style={{ color: '#10B981', fontSize: 15, fontWeight: 600 }}>Contrasena actualizada</p>
-              <p style={{ color: '#90CAF9', fontSize: 13, marginTop: 8 }}>Te redirigiremos al inicio de sesion...</p>
+              <p style={{ color: '#90CAF9', fontSize: 13, marginTop: 8 }}>Te redirigiremos para que inicies sesion con tu nueva contrasena...</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

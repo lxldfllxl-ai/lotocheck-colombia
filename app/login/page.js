@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Eye, EyeOff, User, Mail, Lock, Calendar, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
@@ -8,6 +8,7 @@ export default function Login() {
   const [modo, setModo] = useState('login');
   const [verPass, setVerPass] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
   const [error, setError] = useState(null);
   const [mensaje, setMensaje] = useState(null);
 
@@ -18,6 +19,20 @@ export default function Login() {
     fechaNacimiento: '',
     terminos: false,
   });
+
+  useEffect(() => {
+    checkSesionExistente();
+  }, []);
+
+  async function checkSesionExistente() {
+    if (!supabase) { setVerificandoSesion(false); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      window.location.href = '/';
+    } else {
+      setVerificandoSesion(false);
+    }
+  }
 
   function setField(key, value) {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -121,6 +136,14 @@ export default function Login() {
     marginBottom: 6,
     display: 'block',
   };
+
+  if (verificandoSesion) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#064089', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#64B5F6', fontSize: 14 }}>Cargando...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{

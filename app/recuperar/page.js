@@ -1,30 +1,42 @@
 'use client';
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { Mail, ArrowLeft, Send } from 'lucide-react';
+import { Mail, Calendar, ArrowLeft, Send } from 'lucide-react';
 import Image from 'next/image';
 
 export default function Recuperar() {
   const [email, setEmail] = useState('');
+  const [fechaNacimiento, setFechaNacimiento] = useState('');
   const [cargando, setCargando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [error, setError] = useState(null);
 
   async function handleEnviar() {
     setError(null);
-    if (!email) { setError('Ingresa tu correo electronico.'); return; }
+    if (!email || !fechaNacimiento) {
+      setError('Completa tu correo y fecha de nacimiento.');
+      return;
+    }
 
     setCargando(true);
-    const { error: authError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/recuperar/nueva-contrasena`,
-    });
+    try {
+      const res = await fetch('/api/verificar-recuperacion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, fechaNacimiento }),
+      });
+      const data = await res.json();
 
-    if (authError) {
-      setError('No se pudo enviar el correo. Intenta de nuevo.');
-    } else {
-      setEnviado(true);
+      // Siempre mostramos el mismo resultado, sin importar si los datos coincidian o no
+      if (data.ok || res.ok) {
+        setEnviado(true);
+      } else {
+        setError('Ocurrio un error. Intenta de nuevo.');
+      }
+    } catch (err) {
+      setError('Error de conexion. Intenta de nuevo.');
+    } finally {
+      setCargando(false);
     }
-    setCargando(false);
   }
 
   const inputStyle = {
@@ -42,7 +54,7 @@ export default function Recuperar() {
             <Image src="/logo.png" alt="NotiLoto" width={56} height={56} style={{ borderRadius: 14, objectFit: 'cover' }} />
           </div>
           <p style={{ color: '#fff', fontWeight: 800, fontSize: 22 }}>Recuperar contrasena</p>
-          <p style={{ color: '#90CAF9', fontSize: 13, marginTop: 8 }}>Te enviaremos un enlace a tu correo</p>
+          <p style={{ color: '#90CAF9', fontSize: 13, marginTop: 8 }}>Confirma tu identidad para continuar</p>
         </div>
 
         <div style={{ padding: 24 }}>
@@ -51,9 +63,9 @@ export default function Recuperar() {
               <div style={{ width: 56, height: 56, backgroundColor: '#0a3a2a', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <Send size={24} color="#10B981" />
               </div>
-              <p style={{ color: '#E0F2FE', fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Correo enviado</p>
+              <p style={{ color: '#E0F2FE', fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Solicitud procesada</p>
               <p style={{ color: '#90CAF9', fontSize: 13, lineHeight: 1.6 }}>
-                Revisa tu bandeja de entrada en <strong>{email}</strong> y sigue el enlace para crear una nueva contrasena.
+                Si los datos coinciden con una cuenta registrada, recibiras un correo con instrucciones para restablecer tu contrasena. Revisa tu bandeja de entrada y la carpeta de spam.
               </p>
             </div>
           ) : (
@@ -69,10 +81,28 @@ export default function Recuperar() {
                     placeholder="tu@correo.com"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleEnviar()}
                     style={inputStyle}
                   />
                 </div>
+              </div>
+
+              <div>
+                <span style={labelStyle}>Fecha de nacimiento</span>
+                <div style={{ position: 'relative' }}>
+                  <Calendar size={16} color="#64B5F6" style={{ position: 'absolute', left: 14, top: 14 }} />
+                  <input
+                    type="date"
+                    name="bday"
+                    autoComplete="bday"
+                    value={fechaNacimiento}
+                    onChange={e => setFechaNacimiento(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleEnviar()}
+                    style={{ ...inputStyle, colorScheme: 'dark' }}
+                  />
+                </div>
+                <p style={{ fontSize: 11, color: '#64B5F6', marginTop: 5 }}>
+                  Usamos esto para confirmar que eres el dueno de la cuenta.
+                </p>
               </div>
 
               {error && (
@@ -82,7 +112,7 @@ export default function Recuperar() {
               )}
 
               <button onClick={handleEnviar} disabled={cargando} style={{ width: '100%', backgroundColor: '#F59E0B', border: 'none', borderRadius: 12, padding: '14px', fontSize: 15, fontWeight: 700, color: '#000', cursor: cargando ? 'not-allowed' : 'pointer', opacity: cargando ? 0.6 : 1 }}>
-                {cargando ? 'Enviando...' : 'Enviar enlace de recuperacion'}
+                {cargando ? 'Verificando...' : 'Continuar'}
               </button>
             </div>
           )}
