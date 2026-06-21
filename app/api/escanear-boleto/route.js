@@ -12,21 +12,26 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No se recibio ninguna imagen.' }, { status: 400 });
     }
 
-    const prompt = `Eres un asistente que lee boletos de loterias y chances colombianos en una foto.
-Extrae SOLO los siguientes datos visibles en el boleto y responde UNICAMENTE con un JSON valido, sin texto adicional, sin markdown, sin backticks:
+    const prompt = `Eres un asistente que lee fotos de boletos de loterias y chances colombianos. La imagen puede contener UN SOLO boleto o VARIOS boletos/recibos juntos en la misma foto (por ejemplo, varios tiquetes de chance superpuestos o en fila).
+
+Identifica cada boleto individual que veas en la imagen y extrae sus datos. Responde UNICAMENTE con un JSON valido, sin texto adicional, sin markdown, sin backticks, con esta estructura exacta:
 
 {
-  "loteria": "nombre del juego o loteria tal como aparece impreso (ej: Loteria de Bogota, Chontico Dia, Astro Sol)",
-  "numero": "el numero principal jugado, como texto, conservando ceros a la izquierda",
-  "serie": "la serie si aparece, como texto, o cadena vacia si no aplica",
-  "fraccion": "el numero de fraccion si aparece (ej: 1, 2, 3...), o cadena vacia si no aplica",
-  "valorApuesta": "el valor pagado por el boleto si aparece, como texto con el simbolo de pesos (ej: $2.000), o cadena vacia si no es visible",
-  "fechaSorteo": "la fecha del sorteo si aparece impresa, en formato YYYY-MM-DD, o cadena vacia si no es visible",
-  "signo": "el signo zodiacal si aplica (solo para juegos Astro), o cadena vacia",
-  "confianza": "alta, media o baja, segun que tan seguro estas de la lectura"
+  "boletos": [
+    {
+      "loteria": "nombre del juego o loteria tal como aparece impreso (ej: Loteria de Bogota, Chontico Dia, Astro Sol)",
+      "numero": "el numero principal jugado, como texto, conservando ceros a la izquierda",
+      "serie": "la serie si aparece, como texto, o cadena vacia si no aplica",
+      "fraccion": "el numero de fraccion si aparece, o cadena vacia si no aplica",
+      "valorApuesta": "el valor pagado por el boleto si aparece, con simbolo de pesos, o cadena vacia",
+      "fechaSorteo": "la fecha del sorteo si aparece impresa, en formato YYYY-MM-DD, o cadena vacia",
+      "signo": "el signo zodiacal si aplica (solo juegos Astro), o cadena vacia",
+      "confianza": "alta, media o baja, segun que tan seguro estas de la lectura de ESTE boleto especifico"
+    }
+  ]
 }
 
-Si algun campo no es visible o no aplica, usa cadena vacia "". No inventes datos que no veas claramente en la imagen.`;
+Si solo hay un boleto en la imagen, el array "boletos" debe tener un solo elemento. Si hay varios boletos distintos y claramente separables, incluye uno por cada uno. Si algun campo no es visible o no aplica, usa cadena vacia "". No inventes datos que no veas claramente en la imagen. No combines datos de boletos distintos en uno solo.`;
 
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
@@ -67,7 +72,12 @@ Si algun campo no es visible o no aplica, usa cadena vacia "". No inventes datos
       return NextResponse.json({ error: 'El modelo no devolvio un formato valido.' }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, datos: resultado });
+    const boletos = Array.isArray(resultado.boletos) ? resultado.boletos : [];
+    if (boletos.length === 0) {
+      return NextResponse.json({ error: 'No se detecto ningun boleto en la imagen.' }, { status: 422 });
+    }
+
+    return NextResponse.json({ ok: true, boletos });
   } catch (err) {
     console.error('Error en /api/escanear-boleto:', err);
     return NextResponse.json({ error: 'Error interno al escanear el boleto.' }, { status: 500 });

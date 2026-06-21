@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Search, Calendar, Ticket, Settings, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight } from 'lucide-react';
+import { Search, Calendar, Ticket, Settings, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, ChevronLeft, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { verificarBoletoContraResultados } from '../lib/verificacion';
 import ModalPremium from './components/ModalPremium';
 import EscanerBoleto from './components/EscanerBoleto';
 import Image from 'next/image';
@@ -29,6 +30,10 @@ export default function Home() {
   const [configLimites, setConfigLimites] = useState({ gratis: 2, basico: 10, pro: 25 });
   const [nombresPlanes, setNombresPlanes] = useState({ gratis: 'Gratis', basico: 'Basico', pro: 'Pro', premium: 'Premium' });
 
+  // Cola de boletos detectados por el escaner (cuando son varios en una foto)
+  const [colaEscaneados, setColaEscaneados] = useState([]);
+  const [indiceCola, setIndiceCola] = useState(0);
+
   const COLOR_FONDO = '#0B1F3A';
   const COLOR_CARD = '#142A4A';
   const COLOR_BORDE = '#1A3A5F';
@@ -38,7 +43,7 @@ export default function Home() {
 
   const noticias = [
     { id: 1, titulo: 'Nuevas loterias agregadas', desc: 'Ahora puedes verificar Colorloto y juegos Astro en tiempo real.', fecha: 'Hoy', icono: '✨' },
-    { id: 2, titulo: 'Escanea tus boletos con IA', desc: 'Usa inteligencia artificial para leer tus boletos automaticamente.', fecha: 'Hace 3 dias', icono: '📸' },
+    { id: 2, titulo: 'Escanea tus boletos con IA', desc: 'Detecta varios boletos en una sola foto automaticamente.', fecha: 'Hace 3 dias', icono: '📸' },
     { id: 3, titulo: 'Notificaciones mejoradas', desc: 'Recibe alertas al instante cuando ganes premios en tus loterias favoritas.', fecha: 'Hace 1 semana', icono: '🔔' },
     { id: 4, titulo: 'Actualizamos nuestra seguridad', desc: 'Encriptacion de extremo a extremo para proteger tus datos personales.', fecha: 'Hace 2 semanas', icono: '🔐' },
   ];
@@ -104,78 +109,104 @@ export default function Home() {
     setNumero(''); setSerie(''); setFraccion('1'); setSigno('');
   }
 
+  function matchJuegoPorNombre(nombre) {
+    return juegos.find(j => j.nombre.toLowerCase() === (nombre || '').toLowerCase());
+  }
+
+  // Llena el formulario con un boleto especifico de la cola de escaneados
+  function cargarBoletoDeCola(indice) {
+    const b = colaEscaneados[indice];
+    if (!b) return;
+
+    const juegoMatch = matchJuegoPorNombre(b.loteria);
+    if (juegoMatch) setJuegoSeleccionado(juegoMatch);
+
+    setNumero(b.numero || '');
+    setSerie(b.serie || '');
+    setFraccion(b.fraccion || '1');
+    setSigno(b.signo || '');
+    setValorApuesta(b.valorApuesta || '');
+    setFechaSorteo(b.fechaSorteo || '');
+    setResultado(null);
+    setIndiceCola(indice);
+  }
+
+  function manejarBoletosDetectados(boletosDetectados) {
+    setColaEscaneados(boletosDetectados);
+    setIndiceCola(0);
+    setTab('verificar');
+    // Cargamos el primero automaticamente
+    setTimeout(() => cargarBoletoDeCola(0), 0);
+  }
+
+  function irABoletoCola(indice) {
+    if (indice < 0 || indice >= colaEscaneados.length) return;
+    cargarBoletoDeCola(indice);
+  }
+
+  function quitarDeCola(indice) {
+    const nuevaCola = colaEscaneados.filter((_, i) => i !== indice);
+    setColaEscaneados(nuevaCola);
+    if (nuevaCola.length === 0) {
+      setIndiceCola(0);
+      return;
+    }
+    const nuevoIndice = Math.min(indice, nuevaCola.length - 1);
+    setIndiceCola(nuevoIndice);
+    cargarBoletoDeColaDirecto(nuevaCola, nuevoIndice);
+  }
+
+  function cargarBoletoDeColaDirecto(cola, indice) {
+    const b = cola[indice];
+    if (!b) return;
+    const juegoMatch = matchJuegoPorNombre(b.loteria);
+    if (juegoMatch) setJuegoSeleccionado(juegoMatch);
+    setNumero(b.numero || '');
+    setSerie(b.serie || '');
+    setFraccion(b.fraccion || '1');
+    setSigno(b.signo || '');
+    setValorApuesta(b.valorApuesta || '');
+    setFechaSorteo(b.fechaSorteo || '');
+    setResultado(null);
+  }
+
+  function cerrarCola() {
+    setColaEscaneados([]);
+    setIndiceCola(0);
+  }
+
   async function verificar() {
     if (!numero || !juegoSeleccionado) return;
     if (!fechaSorteo) { setResultado({ tipo: 'error', titulo: 'Selecciona la fecha del sorteo', premio: null }); return; }
 
     setVerificando(true);
-    const numIngresado = numero.padStart(juegoSeleccionado.numero_digits || 4, '0');
-    const serieIngresada = serie.toUpperCase();
 
-    try {
-      const resHist = await fetch(`/api/sorteos-historico?loteria=${encodeURIComponent(juegoSeleccionado.nombre)}&fecha=${fechaSorteo}`);
-      const dataHist = await resHist.json();
+    const verificacion = await verificarBoletoContraResultados({
+      loteria: juegoSeleccionado.nombre,
+      numero,
+      serie,
+      fechaSorteo,
+      tipoJuego: juegoSeleccionado.tipo,
+      numeroDigits: juegoSeleccionado.numero_digits,
+      resultadosReales,
+    });
 
-      if (dataHist.sorteo) {
-        evaluarContraSorteo(dataHist.sorteo, numIngresado, serieIngresada, true);
-        setVerificando(false);
-        return;
-      }
+    setVerificando(false);
 
-      const sorteo = resultadosReales.find(r => r.loteria === juegoSeleccionado.nombre);
-      if (!sorteo) {
-        setResultado({ tipo: 'pendiente', titulo: 'Sorteo aun no disponible', premio: null, sorteo: null });
-        setVerificando(false);
-        return;
-      }
-
-      if (sorteo.fecha === fechaSorteo) {
-        evaluarContraSorteo(sorteo, numIngresado, serieIngresada, false);
-      } else {
-        setResultado({ tipo: 'pendiente', titulo: 'Sorteo pendiente de realizarse', premio: null, sorteo: null });
-      }
-    } catch (e) {
-      console.error(e);
-      setResultado({ tipo: 'error', titulo: 'Error al verificar', premio: null });
-    } finally {
-      setVerificando(false);
-    }
-  }
-
-  function evaluarContraSorteo(sorteo, numIngresado, serieIngresada, esHistorico) {
-    const tipoJuego = juegoSeleccionado.tipo;
-
-    if (tipoJuego === 'astro') {
-      if (numIngresado === sorteo.numero) {
-        setResultado({ tipo: 'mayor', titulo: 'Numero exacto', premio: sorteo.premio, sorteo, esHistorico });
-        return;
-      }
-      setResultado({ tipo: 'nada', titulo: 'Sin premio esta vez', premio: null, sorteo, esHistorico });
+    if (verificacion.resultado === 'pendiente') {
+      setResultado({ tipo: 'pendiente', titulo: 'Sorteo pendiente de realizarse', premio: null, sorteo: null });
       return;
     }
 
-    if (tipoJuego === 'chance' || tipoJuego === 'quinta' || tipoJuego === 'chance_millonario') {
-      if (numIngresado === sorteo.numero) {
-        setResultado({ tipo: 'mayor', titulo: '¡Numero ganador!', premio: sorteo.premio, sorteo, esHistorico });
-        return;
-      }
-      setResultado({ tipo: 'nada', titulo: 'Sin premio esta vez', premio: null, sorteo, esHistorico });
-      return;
+    const detalle = verificacion.detalle;
+    if (verificacion.resultado === 'ganador') {
+      const titulo = detalle.tipo === 'mayor' ? '¡Premio mayor!' :
+                     detalle.tipo === 'mayor_sin_serie' ? '¡Premio mayor! (sin serie)' :
+                     detalle.tipo?.startsWith('seco') ? '¡Seco!' : '¡Numero ganador!';
+      setResultado({ tipo: detalle.tipo?.startsWith('seco') ? 'seco' : 'mayor', titulo, premio: verificacion.premio, sorteo: detalle.sorteo, esHistorico: detalle.esHistorico });
+    } else {
+      setResultado({ tipo: 'nada', titulo: 'Sin premio esta vez', premio: null, sorteo: detalle.sorteo, esHistorico: detalle.esHistorico });
     }
-
-    if (numIngresado === sorteo.numero && (!sorteo.serie || serieIngresada === sorteo.serie)) {
-      setResultado({ tipo: 'mayor', titulo: '¡Premio mayor!', premio: sorteo.premio, sorteo, esHistorico });
-      return;
-    }
-    if (numIngresado === sorteo.numero) {
-      setResultado({ tipo: 'mayor', titulo: '¡Premio mayor! (sin serie)', premio: sorteo.premio, sorteo, esHistorico });
-      return;
-    }
-    const secos = sorteo.secos || [];
-    if (secos.includes(numIngresado.slice(-3))) { setResultado({ tipo: 'seco', titulo: '¡Seco! Ultimas 3 cifras', premio: '$75.000', sorteo, esHistorico }); return; }
-    if (secos.includes(numIngresado.slice(-2))) { setResultado({ tipo: 'seco', titulo: '¡Seco! Ultimas 2 cifras', premio: '$25.000', sorteo, esHistorico }); return; }
-    if (secos.includes(numIngresado.slice(-1))) { setResultado({ tipo: 'seco', titulo: '¡Seco! Ultima cifra', premio: '$3.000', sorteo, esHistorico }); return; }
-    setResultado({ tipo: 'nada', titulo: 'Sin premio esta vez', premio: null, sorteo, esHistorico });
   }
 
   function getLimite() {
@@ -222,8 +253,16 @@ export default function Home() {
       premio: premioFinal,
     }).select().single();
 
-    if (!error && data) setBoletos(prev => [data, ...prev]);
     setGuardando(false);
+
+    if (error) return;
+
+    setBoletos(prev => [data, ...prev]);
+
+    // Si venimos de la cola del escaner, quitamos este boleto de la cola y avanzamos al siguiente
+    if (colaEscaneados.length > 0) {
+      quitarDeCola(indiceCola);
+    }
   }
 
   async function eliminarBoleto(id) {
@@ -243,19 +282,6 @@ export default function Home() {
     setPerfil(prev => ({ ...prev, [key]: nuevo }));
   }
 
-  function manejarResultadoEscaner({ loteria, numero: num, serie: ser, fraccion: frac, valorApuesta: val, fechaSorteo: fecha, signo: sig }) {
-    if (loteria) {
-      const j = juegos.find(j => j.nombre.toLowerCase() === loteria.toLowerCase());
-      if (j) setJuegoSeleccionado(j);
-    }
-    if (num) setNumero(num);
-    if (ser) setSerie(ser);
-    if (frac) setFraccion(frac);
-    if (val) setValorApuesta(val);
-    if (fecha) setFechaSorteo(fecha);
-    if (sig) setSigno(sig);
-  }
-
   const label = { fontSize: 11, fontWeight: 600, color: COLOR_TEXTO_SEC, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, display: 'block' };
   const card = { backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: 16 };
 
@@ -272,7 +298,7 @@ export default function Home() {
     <div style={{ minHeight: '100vh', backgroundColor: COLOR_FONDO, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '10px', boxSizing: 'border-box' }}>
 
       {mostrarPremium && <ModalPremium onClose={() => setMostrarPremium(false)} />}
-      {mostrarEscaner && <EscanerBoleto onResultado={manejarResultadoEscaner} onCerrar={() => setMostrarEscaner(false)} />}
+      {mostrarEscaner && <EscanerBoleto onBoletosDetectados={manejarBoletosDetectados} onCerrar={() => setMostrarEscaner(false)} />}
 
       <div style={{ width: '100%', maxWidth: 1800, backgroundColor: '#0D2240', borderRadius: 24, overflow: 'hidden', border: `1px solid ${COLOR_BORDE}`, boxShadow: '0 24px 80px rgba(0,0,0,0.8)', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
@@ -375,143 +401,171 @@ export default function Home() {
 
           {/* ── VERIFICAR / GUARDAR ── */}
           {tab === 'verificar' && juegoSeleccionado && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32 }}>
+            <div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-
-                <div>
-                  <span style={label}>Juego</span>
-                  <select value={juegoSeleccionado.nombre} onChange={e => cambiarJuego(e.target.value)} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px 14px', fontSize: 14, color: '#E0F2FE', outline: 'none' }}>
-                    {Object.entries(porCategoria).map(([cat, lista]) => (
-                      <optgroup key={cat} label={cat} style={{ backgroundColor: COLOR_CARD }}>
-                        {lista.map(j => <option key={j.id} value={j.nombre} style={{ backgroundColor: COLOR_CARD }}>{j.nombre}</option>)}
-                      </optgroup>
-                    ))}
-                  </select>
-                </div>
-
-                <div onClick={() => setMostrarEscaner(true)} style={{ border: `1.5px dashed ${COLOR_ACENTO}`, borderRadius: 16, padding: '28px 20px', textAlign: 'center', backgroundColor: COLOR_CARD, cursor: 'pointer' }}>
-                  <div style={{ width: 52, height: 52, backgroundColor: COLOR_FONDO, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                    <Camera size={24} color={COLOR_ACENTO} />
+              {/* Navegador de cola de boletos escaneados */}
+              {colaEscaneados.length > 0 && (
+                <div style={{ ...card, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <button onClick={() => irABoletoCola(indiceCola - 1)} disabled={indiceCola === 0} style={{ background: COLOR_FONDO, border: `1px solid ${COLOR_BORDE}`, borderRadius: 8, padding: 8, cursor: indiceCola === 0 ? 'not-allowed' : 'pointer', opacity: indiceCola === 0 ? 0.4 : 1 }}>
+                      <ChevronLeft size={16} color={COLOR_TEXTO_SEC} />
+                    </button>
+                    <p style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
+                      Boleto {indiceCola + 1} de {colaEscaneados.length} escaneados
+                    </p>
+                    <button onClick={() => irABoletoCola(indiceCola + 1)} disabled={indiceCola === colaEscaneados.length - 1} style={{ background: COLOR_FONDO, border: `1px solid ${COLOR_BORDE}`, borderRadius: 8, padding: 8, cursor: indiceCola === colaEscaneados.length - 1 ? 'not-allowed' : 'pointer', opacity: indiceCola === colaEscaneados.length - 1 ? 0.4 : 1 }}>
+                      <ChevronRight size={16} color={COLOR_TEXTO_SEC} />
+                    </button>
                   </div>
-                  <p style={{ color: '#E0F2FE', fontWeight: 600, fontSize: 14 }}>Escanear boleto con IA</p>
-                  <p style={{ color: COLOR_TEXTO_SEC, fontSize: 12, marginTop: 5 }}>Toca para tomar una foto</p>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ flex: 1, height: 1, backgroundColor: COLOR_BORDE }} />
-                  <span style={{ fontSize: 12, color: COLOR_TEXTO_SEC }}>o ingresa manualmente</span>
-                  <div style={{ flex: 1, height: 1, backgroundColor: COLOR_BORDE }} />
-                </div>
-
-                <div>
-                  <span style={label}>Numero {juegoSeleccionado.serie_digits > 0 && '— Serie'}</span>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <input
-                      type="text" maxLength={juegoSeleccionado.numero_digits || 4} placeholder="0000" value={numero}
-                      onChange={e => { setNumero(e.target.value); setResultado(null); }}
-                      style={{ flex: '1 1 160px', minWidth: 0, backgroundColor: COLOR_FONDO, border: `1.5px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '14px 8px', textAlign: 'center', fontSize: 28, fontWeight: 700, letterSpacing: 8, color: '#fff', outline: 'none' }}
-                    />
-                    {juegoSeleccionado.serie_digits > 0 && (
-                      <>
-                        <span style={{ color: COLOR_BORDE, fontSize: 24, flexShrink: 0 }}>–</span>
-                        <input
-                          type="text" maxLength={3} placeholder="A00" value={serie}
-                          onChange={e => { setSerie(e.target.value); setResultado(null); }}
-                          style={{ flex: '0 0 100px', minWidth: 100, backgroundColor: COLOR_FONDO, border: `1.5px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '14px 8px', textAlign: 'center', fontSize: 22, fontWeight: 700, letterSpacing: 5, color: '#fff', outline: 'none' }}
-                        />
-                      </>
-                    )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button onClick={() => quitarDeCola(indiceCola)} style={{ background: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 8, padding: '6px 12px', color: COLOR_TEXTO_SEC, fontSize: 12, cursor: 'pointer' }}>
+                      Omitir este
+                    </button>
+                    <button onClick={cerrarCola} style={{ background: 'transparent', border: 'none', borderRadius: 8, padding: 6, color: COLOR_TEXTO_SEC, cursor: 'pointer' }}>
+                      <X size={16} />
+                    </button>
                   </div>
                 </div>
+              )}
 
-                {juegoSeleccionado.usa_signo && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32 }}>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
                   <div>
-                    <span style={label}>Signo zodiacal</span>
-                    <select value={signo} onChange={e => { setSigno(e.target.value); setResultado(null); }} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0F2FE', outline: 'none' }}>
-                      <option value="" style={{ backgroundColor: COLOR_CARD }}>Selecciona signo</option>
-                      {['Aries','Tauro','Geminis','Cancer','Leo','Virgo','Libra','Escorpio','Sagitario','Capricornio','Acuario','Piscis'].map(s => <option key={s} style={{ backgroundColor: COLOR_CARD }}>{s}</option>)}
+                    <span style={label}>Juego</span>
+                    <select value={juegoSeleccionado.nombre} onChange={e => cambiarJuego(e.target.value)} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px 14px', fontSize: 14, color: '#E0F2FE', outline: 'none' }}>
+                      {Object.entries(porCategoria).map(([cat, lista]) => (
+                        <optgroup key={cat} label={cat} style={{ backgroundColor: COLOR_CARD }}>
+                          {lista.map(j => <option key={j.id} value={j.nombre} style={{ backgroundColor: COLOR_CARD }}>{j.nombre}</option>)}
+                        </optgroup>
+                      ))}
                     </select>
                   </div>
-                )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: juegoSeleccionado.tiene_fraccion ? '1fr 1fr' : '1fr', gap: 12 }}>
-                  {juegoSeleccionado.tiene_fraccion && (
+                  <div onClick={() => setMostrarEscaner(true)} style={{ border: `1.5px dashed ${COLOR_ACENTO}`, borderRadius: 16, padding: '28px 20px', textAlign: 'center', backgroundColor: COLOR_CARD, cursor: 'pointer' }}>
+                    <div style={{ width: 52, height: 52, backgroundColor: COLOR_FONDO, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                      <Camera size={24} color={COLOR_ACENTO} />
+                    </div>
+                    <p style={{ color: '#E0F2FE', fontWeight: 600, fontSize: 14 }}>Escanear boleto con IA</p>
+                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 12, marginTop: 5 }}>Puedes escanear varios a la vez</p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ flex: 1, height: 1, backgroundColor: COLOR_BORDE }} />
+                    <span style={{ fontSize: 12, color: COLOR_TEXTO_SEC }}>o ingresa manualmente</span>
+                    <div style={{ flex: 1, height: 1, backgroundColor: COLOR_BORDE }} />
+                  </div>
+
+                  <div>
+                    <span style={label}>Numero {juegoSeleccionado.serie_digits > 0 && '— Serie'}</span>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        type="text" maxLength={juegoSeleccionado.numero_digits || 4} placeholder="0000" value={numero}
+                        onChange={e => { setNumero(e.target.value); setResultado(null); }}
+                        style={{ flex: '1 1 160px', minWidth: 0, backgroundColor: COLOR_FONDO, border: `1.5px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '14px 8px', textAlign: 'center', fontSize: 28, fontWeight: 700, letterSpacing: 8, color: '#fff', outline: 'none' }}
+                      />
+                      {juegoSeleccionado.serie_digits > 0 && (
+                        <>
+                          <span style={{ color: COLOR_BORDE, fontSize: 24, flexShrink: 0 }}>–</span>
+                          <input
+                            type="text" maxLength={3} placeholder="A00" value={serie}
+                            onChange={e => { setSerie(e.target.value); setResultado(null); }}
+                            style={{ flex: '0 0 100px', minWidth: 100, backgroundColor: COLOR_FONDO, border: `1.5px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '14px 8px', textAlign: 'center', fontSize: 22, fontWeight: 700, letterSpacing: 5, color: '#fff', outline: 'none' }}
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {juegoSeleccionado.usa_signo && (
                     <div>
-                      <span style={label}>Fraccion</span>
-                      <select value={fraccion} onChange={e => { setFraccion(e.target.value); setResultado(null); }} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0F2FE', outline: 'none' }}>
-                        {[1,2,3,4,5,6,7,8,9,10].map(f => <option key={f} value={f} style={{ backgroundColor: COLOR_CARD }}>Fraccion {f}/10</option>)}
+                      <span style={label}>Signo zodiacal</span>
+                      <select value={signo} onChange={e => { setSigno(e.target.value); setResultado(null); }} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0F2FE', outline: 'none' }}>
+                        <option value="" style={{ backgroundColor: COLOR_CARD }}>Selecciona signo</option>
+                        {['Aries','Tauro','Geminis','Cancer','Leo','Virgo','Libra','Escorpio','Sagitario','Capricornio','Acuario','Piscis'].map(s => <option key={s} style={{ backgroundColor: COLOR_CARD }}>{s}</option>)}
                       </select>
                     </div>
                   )}
-                  <div>
-                    <span style={label}>Fecha sorteo</span>
-                    <input type="date" value={fechaSorteo} onChange={e => { setFechaSorteo(e.target.value); setResultado(null); }} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0F2FE', outline: 'none', colorScheme: 'dark' }} />
-                  </div>
-                </div>
 
-                <div>
-                  <span style={label}>Valor de la apuesta (opcional)</span>
-                  <input type="text" placeholder="$2.000" value={valorApuesta} onChange={e => setValorApuesta(e.target.value)} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px 14px', fontSize: 14, color: '#E0F2FE', outline: 'none' }} />
-                </div>
-
-                <button onClick={verificar} disabled={!numero || verificando} style={{ width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12, padding: '16px', fontSize: 16, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (!numero || verificando) ? 0.4 : 1, boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}>
-                  <Search size={20} /> {verificando ? 'Verificando...' : 'Verificar boleto'}
-                </button>
-
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                {!resultado ? (
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: 40, textAlign: 'center', backgroundColor: COLOR_FONDO, minHeight: 300 }}>
-                    <div style={{ width: 64, height: 64, backgroundColor: COLOR_CARD, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                      <Search size={28} color={COLOR_BORDE} />
-                    </div>
-                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 15, fontWeight: 500 }}>Ingresa un numero para verificar</p>
-                    <p style={{ color: COLOR_TEXTO_TERC, fontSize: 13, marginTop: 8 }}>El resultado aparecera aqui</p>
-                  </div>
-                ) : (
-                  <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : COLOR_BORDE}` }}>
-                    <div style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: 16, backgroundColor: resultado.tipo === 'mayor' ? '#0a3a2a' : resultado.tipo === 'seco' ? '#3a2f0a' : COLOR_FONDO }}>
-                      <div style={{ width: 60, height: 60, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, backgroundColor: resultado.tipo === 'mayor' ? '#0a5a4a' : resultado.tipo === 'seco' ? '#5a4a0a' : COLOR_CARD, flexShrink: 0 }}>
-                        {resultado.tipo === 'mayor' ? '🏆' : resultado.tipo === 'seco' ? '🪙' : resultado.tipo === 'pendiente' ? '⏳' : resultado.tipo === 'error' ? '⚠️' : '❌'}
-                      </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: juegoSeleccionado.tiene_fraccion ? '1fr 1fr' : '1fr', gap: 12 }}>
+                    {juegoSeleccionado.tiene_fraccion && (
                       <div>
-                        <p style={{ fontWeight: 700, fontSize: 20, color: resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : COLOR_TEXTO_SEC }}>{resultado.titulo}</p>
-                        {resultado.premio && <p style={{ fontSize: 26, fontWeight: 800, color: resultado.tipo === 'mayor' ? '#10B981' : COLOR_ACENTO, marginTop: 4 }}>{resultado.premio}</p>}
-                      </div>
-                    </div>
-
-                    {resultado.tipo !== 'error' && (
-                      <div style={{ padding: 20, backgroundColor: COLOR_FONDO, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        {[
-                          { lbl: 'Tu numero', val: `${numero.padStart(juegoSeleccionado.numero_digits || 4,'0')}${serie ? ' – ' + serie.toUpperCase() : ''}` },
-                          juegoSeleccionado.tiene_fraccion && { lbl: 'Fraccion', val: `${fraccion}/10` },
-                          { lbl: 'Juego', val: juegoSeleccionado.nombre },
-                          fechaSorteo && { lbl: 'Fecha sorteo', val: fechaSorteo },
-                          resultado.esHistorico !== undefined && { lbl: 'Tipo de boleto', val: resultado.esHistorico ? 'Sorteo antiguo (historico)' : 'Sorteo reciente' },
-                          resultado.sorteo && { lbl: 'Numero ganador', val: `${resultado.sorteo.numero}${resultado.sorteo.serie ? ' – ' + resultado.sorteo.serie : ''}` },
-                        ].filter(Boolean).map(({ lbl, val }) => (
-                          <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, paddingBottom: 12, borderBottom: `1px solid ${COLOR_BORDE}` }}>
-                            <span style={{ color: COLOR_TEXTO_SEC }}>{lbl}</span>
-                            <span style={{ color: '#E0F2FE', fontWeight: 600 }}>{val}</span>
-                          </div>
-                        ))}
-
-                        {resultado.tipo !== 'pendiente' && (
-                          <button onClick={guardarBoleto} disabled={guardando} style={{ width: '100%', marginTop: 4, backgroundColor: 'transparent', border: `1.5px solid ${COLOR_ACENTO}`, borderRadius: 10, padding: '13px', fontSize: 14, fontWeight: 700, color: COLOR_ACENTO, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                            <Plus size={16} /> {guardando ? 'Guardando...' : 'Guardar en mi historial'}
-                          </button>
-                        )}
-                        {resultado.tipo === 'pendiente' && (
-                          <button onClick={guardarBoleto} disabled={guardando} style={{ width: '100%', marginTop: 4, backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '13px', fontSize: 14, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                            <Plus size={16} /> {guardando ? 'Guardando...' : 'Guardar y notificar cuando salga'}
-                          </button>
-                        )}
+                        <span style={label}>Fraccion</span>
+                        <select value={fraccion} onChange={e => { setFraccion(e.target.value); setResultado(null); }} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0F2FE', outline: 'none' }}>
+                          {[1,2,3,4,5,6,7,8,9,10].map(f => <option key={f} value={f} style={{ backgroundColor: COLOR_CARD }}>Fraccion {f}/10</option>)}
+                        </select>
                       </div>
                     )}
+                    <div>
+                      <span style={label}>Fecha sorteo</span>
+                      <input type="date" value={fechaSorteo} onChange={e => { setFechaSorteo(e.target.value); setResultado(null); }} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0F2FE', outline: 'none', colorScheme: 'dark' }} />
+                    </div>
                   </div>
-                )}
+
+                  <div>
+                    <span style={label}>Valor de la apuesta (opcional)</span>
+                    <input type="text" placeholder="$2.000" value={valorApuesta} onChange={e => setValorApuesta(e.target.value)} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px 14px', fontSize: 14, color: '#E0F2FE', outline: 'none' }} />
+                  </div>
+
+                  <button onClick={verificar} disabled={!numero || verificando} style={{ width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12, padding: '16px', fontSize: 16, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (!numero || verificando) ? 0.4 : 1, boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}>
+                    <Search size={20} /> {verificando ? 'Verificando...' : 'Verificar boleto'}
+                  </button>
+
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                  {!resultado ? (
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: 40, textAlign: 'center', backgroundColor: COLOR_FONDO, minHeight: 300 }}>
+                      <div style={{ width: 64, height: 64, backgroundColor: COLOR_CARD, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                        <Search size={28} color={COLOR_BORDE} />
+                      </div>
+                      <p style={{ color: COLOR_TEXTO_SEC, fontSize: 15, fontWeight: 500 }}>Ingresa un numero para verificar</p>
+                      <p style={{ color: COLOR_TEXTO_TERC, fontSize: 13, marginTop: 8 }}>El resultado aparecera aqui</p>
+                    </div>
+                  ) : (
+                    <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : COLOR_BORDE}` }}>
+                      <div style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: 16, backgroundColor: resultado.tipo === 'mayor' ? '#0a3a2a' : resultado.tipo === 'seco' ? '#3a2f0a' : COLOR_FONDO }}>
+                        <div style={{ width: 60, height: 60, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, backgroundColor: resultado.tipo === 'mayor' ? '#0a5a4a' : resultado.tipo === 'seco' ? '#5a4a0a' : COLOR_CARD, flexShrink: 0 }}>
+                          {resultado.tipo === 'mayor' ? '🏆' : resultado.tipo === 'seco' ? '🪙' : resultado.tipo === 'pendiente' ? '⏳' : resultado.tipo === 'error' ? '⚠️' : '❌'}
+                        </div>
+                        <div>
+                          <p style={{ fontWeight: 700, fontSize: 20, color: resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : COLOR_TEXTO_SEC }}>{resultado.titulo}</p>
+                          {resultado.premio && <p style={{ fontSize: 26, fontWeight: 800, color: resultado.tipo === 'mayor' ? '#10B981' : COLOR_ACENTO, marginTop: 4 }}>{resultado.premio}</p>}
+                        </div>
+                      </div>
+
+                      {resultado.tipo !== 'error' && (
+                        <div style={{ padding: 20, backgroundColor: COLOR_FONDO, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {[
+                            { lbl: 'Tu numero', val: `${numero.padStart(juegoSeleccionado.numero_digits || 4,'0')}${serie ? ' – ' + serie.toUpperCase() : ''}` },
+                            juegoSeleccionado.tiene_fraccion && { lbl: 'Fraccion', val: `${fraccion}/10` },
+                            { lbl: 'Juego', val: juegoSeleccionado.nombre },
+                            fechaSorteo && { lbl: 'Fecha sorteo', val: fechaSorteo },
+                            resultado.esHistorico !== undefined && { lbl: 'Tipo de boleto', val: resultado.esHistorico ? 'Sorteo antiguo (historico)' : 'Sorteo reciente' },
+                            resultado.sorteo && { lbl: 'Numero ganador', val: `${resultado.sorteo.numero}${resultado.sorteo.serie ? ' – ' + resultado.sorteo.serie : ''}` },
+                          ].filter(Boolean).map(({ lbl, val }) => (
+                            <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, paddingBottom: 12, borderBottom: `1px solid ${COLOR_BORDE}` }}>
+                              <span style={{ color: COLOR_TEXTO_SEC }}>{lbl}</span>
+                              <span style={{ color: '#E0F2FE', fontWeight: 600 }}>{val}</span>
+                            </div>
+                          ))}
+
+                          {resultado.tipo !== 'pendiente' && (
+                            <button onClick={guardarBoleto} disabled={guardando} style={{ width: '100%', marginTop: 4, backgroundColor: 'transparent', border: `1.5px solid ${COLOR_ACENTO}`, borderRadius: 10, padding: '13px', fontSize: 14, fontWeight: 700, color: COLOR_ACENTO, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                              <Plus size={16} /> {guardando ? 'Guardando...' : colaEscaneados.length > 0 ? 'Guardar y siguiente boleto' : 'Guardar en mi historial'}
+                            </button>
+                          )}
+                          {resultado.tipo === 'pendiente' && (
+                            <button onClick={guardarBoleto} disabled={guardando} style={{ width: '100%', marginTop: 4, backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '13px', fontSize: 14, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                              <Plus size={16} /> {guardando ? 'Guardando...' : colaEscaneados.length > 0 ? 'Guardar y siguiente boleto' : 'Guardar y notificar cuando salga'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
