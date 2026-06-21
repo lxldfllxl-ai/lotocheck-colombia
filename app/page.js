@@ -277,10 +277,10 @@ export default function Home() {
       <div style={{ width: '100%', maxWidth: 1800, backgroundColor: '#0D2240', borderRadius: 24, overflow: 'hidden', border: `1px solid ${COLOR_BORDE}`, boxShadow: '0 24px 80px rgba(0,0,0,0.8)', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
         {/* Header */}
-        <div style={{ background: `linear-gradient(135deg, ${COLOR_FONDO} 0%, ${COLOR_CARD} 100%)`, padding: '20px 32px 16px', borderBottom: `1px solid ${COLOR_BORDE}` }}>
+        <div style={{ background: `linear-gradient(135deg, ${COLOR_FONDO} 0%, ${COLOR_CARD} 100%)`, padding: '24px 32px 20px', borderBottom: `1px solid ${COLOR_BORDE}` }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Image src="/logo.png" alt="NotiLoto Logo" width={44} height={44} style={{ borderRadius: 10, objectFit: 'cover' }} />
+              <Image src="/logo.png" alt="NotiLoto Logo" width={110} height={110} style={{ borderRadius: 10, objectFit: 'cover' }} />
               <div>
                 <p style={{ color: '#fff', fontWeight: 700, fontSize: 20, lineHeight: 1 }}>NotiLoto</p>
                 <p style={{ color: COLOR_ACENTO, fontSize: 12, fontWeight: 500, marginTop: 3 }}>Colombia</p>
