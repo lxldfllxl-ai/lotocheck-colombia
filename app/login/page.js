@@ -77,7 +77,7 @@ export default function Login() {
 
     try {
       if (modo === 'registro') {
-        const { error: authError } = await supabase.auth.signUp({
+        const { data: signUpData, error: authError } = await supabase.auth.signUp({
           email: form.email,
           password: form.password,
           options: {
@@ -93,6 +93,13 @@ export default function Login() {
             ? 'Este correo ya esta registrado. Intenta iniciar sesion.'
             : authError.message);
         } else {
+          // Guardamos tambien la fecha de nacimiento directamente en profiles,
+          // ya que el trigger de creacion de perfil puede no incluirla.
+          if (signUpData?.user?.id) {
+            await supabase.from('profiles').update({
+              fecha_nacimiento: form.fechaNacimiento,
+            }).eq('id', signUpData.user.id);
+          }
           setMensaje('Cuenta creada! Ya puedes iniciar sesion.');
           setModo('login');
         }
