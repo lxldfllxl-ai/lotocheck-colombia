@@ -15,6 +15,7 @@ export default function Home() {
   const [serie, setSerie] = useState('');
   const [fraccion, setFraccion] = useState('1');
   const [signo, setSigno] = useState('');
+  const [fraccionesSeleccionadas, setFraccionesSeleccionadas] = useState([]);
   const [valorApuesta, setValorApuesta] = useState('');
   const [fechaSorteo, setFechaSorteo] = useState('');
   const [resultado, setResultado] = useState(null);
@@ -107,6 +108,7 @@ export default function Home() {
     setJuegoSeleccionado(j);
     setResultado(null);
     setNumero(''); setSerie(''); setFraccion('1'); setSigno('');
+    setFraccionesSeleccionadas([]);
   }
 
   function matchJuegoPorNombre(nombre) {
@@ -127,6 +129,7 @@ export default function Home() {
     setSigno(b.signo || '');
     setValorApuesta(b.valorApuesta || '');
     setFechaSorteo(b.fechaSorteo || '');
+    setFraccionesSeleccionadas(b.fracciones?.length > 0 ? b.fracciones : []);
     setResultado(null);
     setIndiceCola(indice);
   }
@@ -167,6 +170,7 @@ export default function Home() {
     setSigno(b.signo || '');
     setValorApuesta(b.valorApuesta || '');
     setFechaSorteo(b.fechaSorteo || '');
+    setFraccionesSeleccionadas(b.fracciones?.length > 0 ? b.fracciones : []);
     setResultado(null);
   }
 
@@ -247,7 +251,7 @@ export default function Home() {
       loteria: juegoSeleccionado.nombre,
       numero: numero.padStart(juegoSeleccionado.numero_digits || 4, '0'),
       serie: serie.toUpperCase(),
-      fraccion: fraccion || '',
+      fracciones: fraccionesSeleccionadas,
       fecha_sorteo: fechaSorteo,
       resultado: resultadoFinal,
       premio: premioFinal,
@@ -443,13 +447,23 @@ export default function Home() {
                     </select>
                   </div>
 
-                  <div onClick={() => setMostrarEscaner(true)} style={{ border: `1.5px dashed ${COLOR_ACENTO}`, borderRadius: 16, padding: '28px 20px', textAlign: 'center', backgroundColor: COLOR_CARD, cursor: 'pointer' }}>
-                    <div style={{ width: 52, height: 52, backgroundColor: COLOR_FONDO, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                      <Camera size={24} color={COLOR_ACENTO} />
+                  {usuario ? (
+                    <div onClick={() => setMostrarEscaner(true)} style={{ border: `1.5px dashed ${COLOR_ACENTO}`, borderRadius: 16, padding: '28px 20px', textAlign: 'center', backgroundColor: COLOR_CARD, cursor: 'pointer' }}>
+                      <div style={{ width: 52, height: 52, backgroundColor: COLOR_FONDO, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                        <Camera size={24} color={COLOR_ACENTO} />
+                      </div>
+                      <p style={{ color: '#E0F2FE', fontWeight: 600, fontSize: 14 }}>Escanear boleto con IA</p>
+                      <p style={{ color: COLOR_TEXTO_SEC, fontSize: 12, marginTop: 5 }}>Puedes escanear varios a la vez</p>
                     </div>
-                    <p style={{ color: '#E0F2FE', fontWeight: 600, fontSize: 14 }}>Escanear boleto con IA</p>
-                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 12, marginTop: 5 }}>Puedes escanear varios a la vez</p>
-                  </div>
+                  ) : (
+                    <div onClick={() => window.location.href = '/login'} style={{ border: `1.5px dashed ${COLOR_BORDE}`, borderRadius: 16, padding: '28px 20px', textAlign: 'center', backgroundColor: COLOR_CARD, cursor: 'pointer' }}>
+                      <div style={{ width: 52, height: 52, backgroundColor: COLOR_FONDO, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                        <Camera size={24} color={COLOR_TEXTO_TERC} />
+                      </div>
+                      <p style={{ color: COLOR_TEXTO_SEC, fontWeight: 600, fontSize: 14 }}>Escanear boleto con IA</p>
+                      <p style={{ color: COLOR_TEXTO_TERC, fontSize: 12, marginTop: 5 }}>Inicia sesion para usar esta funcion</p>
+                    </div>
+                  )}
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ flex: 1, height: 1, backgroundColor: COLOR_BORDE }} />
@@ -491,10 +505,45 @@ export default function Home() {
                   <div style={{ display: 'grid', gridTemplateColumns: juegoSeleccionado.tiene_fraccion ? '1fr 1fr' : '1fr', gap: 12 }}>
                     {juegoSeleccionado.tiene_fraccion && (
                       <div>
-                        <span style={label}>Fraccion</span>
-                        <select value={fraccion} onChange={e => { setFraccion(e.target.value); setResultado(null); }} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0F2FE', outline: 'none' }}>
-                          {[1,2,3,4,5,6,7,8,9,10].map(f => <option key={f} value={f} style={{ backgroundColor: COLOR_CARD }}>Fraccion {f}/10</option>)}
-                        </select>
+                        <span style={label}>
+                          Fracciones que tienes
+                          {juegoSeleccionado.total_fracciones > 1 && (
+                            <span style={{ color: COLOR_TEXTO_TERC, fontWeight: 400, marginLeft: 6 }}>
+                              (el juego tiene {juegoSeleccionado.total_fracciones} en total)
+                            </span>
+                          )}
+                        </span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {Array.from({ length: juegoSeleccionado.total_fracciones || 10 }, (_, i) => i + 1).map(f => (
+                            <button
+                              key={f}
+                              type="button"
+                              onClick={() => {
+                                const fNum = f;
+                                const yaSeleccionada = fraccionesSeleccionadas.includes(fNum);
+                                if (yaSeleccionada) {
+                                  setFraccionesSeleccionadas(prev => prev.filter(x => x !== fNum));
+                                } else {
+                                  setFraccionesSeleccionadas(prev => [...prev, fNum].sort((a, b) => a - b));
+                                }
+                                setResultado(null);
+                              }}
+                              style={{
+                                width: 40, height: 40, borderRadius: 10, border: `1.5px solid ${fraccionesSeleccionadas.includes(f) ? COLOR_ACENTO : COLOR_BORDE}`,
+                                backgroundColor: fraccionesSeleccionadas.includes(f) ? '#3a2f0a' : COLOR_FONDO,
+                                color: fraccionesSeleccionadas.includes(f) ? COLOR_ACENTO : COLOR_TEXTO_SEC,
+                                fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                              }}
+                            >
+                              {f}
+                            </button>
+                          ))}
+                        </div>
+                        {fraccionesSeleccionadas.length > 0 && (
+                          <p style={{ fontSize: 11, color: COLOR_ACENTO, marginTop: 6 }}>
+                            Seleccionadas: {fraccionesSeleccionadas.join(', ')}
+                          </p>
+                        )}
                       </div>
                     )}
                     <div>
