@@ -13,9 +13,8 @@ export default function Home() {
   const [juegoSeleccionado, setJuegoSeleccionado] = useState(null);
   const [numero, setNumero] = useState('');
   const [serie, setSerie] = useState('');
-  const [fraccion, setFraccion] = useState('1');
-  const [signo, setSigno] = useState('');
   const [fraccionesSeleccionadas, setFraccionesSeleccionadas] = useState([]);
+  const [signo, setSigno] = useState('');
   const [valorApuesta, setValorApuesta] = useState('');
   const [fechaSorteo, setFechaSorteo] = useState('');
   const [resultado, setResultado] = useState(null);
@@ -30,8 +29,6 @@ export default function Home() {
   const [mostrarEscaner, setMostrarEscaner] = useState(false);
   const [configLimites, setConfigLimites] = useState({ gratis: 2, basico: 10, pro: 25 });
   const [nombresPlanes, setNombresPlanes] = useState({ gratis: 'Gratis', basico: 'Basico', pro: 'Pro', premium: 'Premium' });
-
-  // Cola de boletos detectados por el escaner (cuando son varios en una foto)
   const [colaEscaneados, setColaEscaneados] = useState([]);
   const [indiceCola, setIndiceCola] = useState(0);
 
@@ -56,12 +53,7 @@ export default function Home() {
     fetch('/api/configuracion').then(res => res.json()).then(data => {
       if (!data.error) {
         setConfigLimites({ gratis: data.limite_gratis, basico: data.limite_basico, pro: data.limite_pro });
-        setNombresPlanes({
-          gratis: data.nombre_gratis || 'Gratis',
-          basico: data.nombre_basico || 'Basico',
-          pro: data.nombre_pro || 'Pro',
-          premium: data.nombre_premium || 'Premium',
-        });
+        setNombresPlanes({ gratis: data.nombre_gratis || 'Gratis', basico: data.nombre_basico || 'Basico', pro: data.nombre_pro || 'Pro', premium: data.nombre_premium || 'Premium' });
       }
     }).catch(() => {});
   }, []);
@@ -107,56 +99,19 @@ export default function Home() {
     const j = juegos.find(j => j.nombre === nombreJuego);
     setJuegoSeleccionado(j);
     setResultado(null);
-    setNumero(''); setSerie(''); setFraccion('1'); setSigno('');
-    setFraccionesSeleccionadas([]);
+    setNumero(''); setSerie(''); setFraccionesSeleccionadas([]); setSigno('');
+  }
+
+  function toggleFraccion(f) {
+    setFraccionesSeleccionadas(prev => {
+      if (prev.includes(f)) return prev.filter(x => x !== f);
+      return [...prev, f].sort((a, b) => a - b);
+    });
+    setResultado(null);
   }
 
   function matchJuegoPorNombre(nombre) {
     return juegos.find(j => j.nombre.toLowerCase() === (nombre || '').toLowerCase());
-  }
-
-  // Llena el formulario con un boleto especifico de la cola de escaneados
-  function cargarBoletoDeCola(indice) {
-    const b = colaEscaneados[indice];
-    if (!b) return;
-
-    const juegoMatch = matchJuegoPorNombre(b.loteria);
-    if (juegoMatch) setJuegoSeleccionado(juegoMatch);
-
-    setNumero(b.numero || '');
-    setSerie(b.serie || '');
-    setFraccion(b.fraccion || '1');
-    setSigno(b.signo || '');
-    setValorApuesta(b.valorApuesta || '');
-    setFechaSorteo(b.fechaSorteo || '');
-    setFraccionesSeleccionadas(b.fracciones?.length > 0 ? b.fracciones : []);
-    setResultado(null);
-    setIndiceCola(indice);
-  }
-
-  function manejarBoletosDetectados(boletosDetectados) {
-    setColaEscaneados(boletosDetectados);
-    setIndiceCola(0);
-    setTab('verificar');
-    // Cargamos el primero automaticamente
-    setTimeout(() => cargarBoletoDeCola(0), 0);
-  }
-
-  function irABoletoCola(indice) {
-    if (indice < 0 || indice >= colaEscaneados.length) return;
-    cargarBoletoDeCola(indice);
-  }
-
-  function quitarDeCola(indice) {
-    const nuevaCola = colaEscaneados.filter((_, i) => i !== indice);
-    setColaEscaneados(nuevaCola);
-    if (nuevaCola.length === 0) {
-      setIndiceCola(0);
-      return;
-    }
-    const nuevoIndice = Math.min(indice, nuevaCola.length - 1);
-    setIndiceCola(nuevoIndice);
-    cargarBoletoDeColaDirecto(nuevaCola, nuevoIndice);
   }
 
   function cargarBoletoDeColaDirecto(cola, indice) {
@@ -166,12 +121,31 @@ export default function Home() {
     if (juegoMatch) setJuegoSeleccionado(juegoMatch);
     setNumero(b.numero || '');
     setSerie(b.serie || '');
-    setFraccion(b.fraccion || '1');
+    setFraccionesSeleccionadas(Array.isArray(b.fracciones) && b.fracciones.length > 0 ? b.fracciones : []);
     setSigno(b.signo || '');
     setValorApuesta(b.valorApuesta || '');
     setFechaSorteo(b.fechaSorteo || '');
-    setFraccionesSeleccionadas(b.fracciones?.length > 0 ? b.fracciones : []);
     setResultado(null);
+    setIndiceCola(indice);
+  }
+
+  function manejarBoletosDetectados(boletosDetectados) {
+    setColaEscaneados(boletosDetectados);
+    setTab('verificar');
+    setTimeout(() => cargarBoletoDeColaDirecto(boletosDetectados, 0), 0);
+  }
+
+  function irABoletoCola(indice) {
+    if (indice < 0 || indice >= colaEscaneados.length) return;
+    cargarBoletoDeColaDirecto(colaEscaneados, indice);
+  }
+
+  function quitarDeCola(indice) {
+    const nuevaCola = colaEscaneados.filter((_, i) => i !== indice);
+    setColaEscaneados(nuevaCola);
+    if (nuevaCola.length === 0) { setIndiceCola(0); return; }
+    const nuevoIndice = Math.min(indice, nuevaCola.length - 1);
+    cargarBoletoDeColaDirecto(nuevaCola, nuevoIndice);
   }
 
   function cerrarCola() {
@@ -198,7 +172,9 @@ export default function Home() {
     setVerificando(false);
 
     if (verificacion.resultado === 'pendiente') {
-      setResultado({ tipo: 'pendiente', titulo: 'Sorteo pendiente de realizarse', premio: null, sorteo: null });
+      const motivo = verificacion.detalle?.motivo;
+      const titulo = motivo === 'sorteo_futuro' ? 'Sorteo pendiente de realizarse' : motivo === 'sin_resultado_aun' ? 'Resultado aun no disponible' : 'Sorteo pendiente';
+      setResultado({ tipo: 'pendiente', titulo, premio: null, sorteo: null });
       return;
     }
 
@@ -206,8 +182,11 @@ export default function Home() {
     if (verificacion.resultado === 'ganador') {
       const titulo = detalle.tipo === 'mayor' ? '¡Premio mayor!' :
                      detalle.tipo === 'mayor_sin_serie' ? '¡Premio mayor! (sin serie)' :
-                     detalle.tipo?.startsWith('seco') ? '¡Seco!' : '¡Numero ganador!';
-      setResultado({ tipo: detalle.tipo?.startsWith('seco') ? 'seco' : 'mayor', titulo, premio: verificacion.premio, sorteo: detalle.sorteo, esHistorico: detalle.esHistorico });
+                     detalle.tipo === 'seco_3' ? '¡Seco! Ultimas 3 cifras' :
+                     detalle.tipo === 'seco_2' ? '¡Seco! Ultimas 2 cifras' :
+                     detalle.tipo === 'seco_1' ? '¡Seco! Ultima cifra' : '¡Numero ganador!';
+      const esSeco = detalle.tipo?.startsWith('seco');
+      setResultado({ tipo: esSeco ? 'seco' : 'mayor', titulo, premio: verificacion.premio, sorteo: detalle.sorteo, esHistorico: detalle.esHistorico });
     } else {
       setResultado({ tipo: 'nada', titulo: 'Sin premio esta vez', premio: null, sorteo: detalle.sorteo, esHistorico: detalle.esHistorico });
     }
@@ -240,8 +219,7 @@ export default function Home() {
     let resultadoFinal = 'pendiente';
     let premioFinal = null;
     if (resultado && (resultado.tipo === 'mayor' || resultado.tipo === 'seco')) {
-      resultadoFinal = 'ganador';
-      premioFinal = resultado.premio;
+      resultadoFinal = 'ganador'; premioFinal = resultado.premio;
     } else if (resultado && resultado.tipo === 'nada') {
       resultadoFinal = 'perdedor';
     }
@@ -258,12 +236,10 @@ export default function Home() {
     }).select().single();
 
     setGuardando(false);
-
-    if (error) return;
+    if (error) { console.error(error); return; }
 
     setBoletos(prev => [data, ...prev]);
 
-    // Si venimos de la cola del escaner, quitamos este boleto de la cola y avanzamos al siguiente
     if (colaEscaneados.length > 0) {
       quitarDeCola(indiceCola);
     }
@@ -291,12 +267,7 @@ export default function Home() {
 
   const pendientes = boletosPendientes();
   const historicos = boletos.filter(b => b.resultado !== 'pendiente');
-
-  const porCategoria = juegos.reduce((acc, j) => {
-    if (!acc[j.categoria]) acc[j.categoria] = [];
-    acc[j.categoria].push(j);
-    return acc;
-  }, {});
+  const porCategoria = juegos.reduce((acc, j) => { if (!acc[j.categoria]) acc[j.categoria] = []; acc[j.categoria].push(j); return acc; }, {});
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: COLOR_FONDO, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '10px', boxSizing: 'border-box' }}>
@@ -346,7 +317,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* Contenido Principal */}
+        {/* Contenido */}
         <div style={{ flex: 1, padding: '32px 32px 100px', overflowY: 'auto' }}>
 
           {/* ── INICIO ── */}
@@ -406,25 +377,20 @@ export default function Home() {
           {/* ── VERIFICAR / GUARDAR ── */}
           {tab === 'verificar' && juegoSeleccionado && (
             <div>
-
-              {/* Navegador de cola de boletos escaneados */}
+              {/* Navegador de cola */}
               {colaEscaneados.length > 0 && (
                 <div style={{ ...card, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <button onClick={() => irABoletoCola(indiceCola - 1)} disabled={indiceCola === 0} style={{ background: COLOR_FONDO, border: `1px solid ${COLOR_BORDE}`, borderRadius: 8, padding: 8, cursor: indiceCola === 0 ? 'not-allowed' : 'pointer', opacity: indiceCola === 0 ? 0.4 : 1 }}>
                       <ChevronLeft size={16} color={COLOR_TEXTO_SEC} />
                     </button>
-                    <p style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
-                      Boleto {indiceCola + 1} de {colaEscaneados.length} escaneados
-                    </p>
+                    <p style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>Boleto {indiceCola + 1} de {colaEscaneados.length} escaneados</p>
                     <button onClick={() => irABoletoCola(indiceCola + 1)} disabled={indiceCola === colaEscaneados.length - 1} style={{ background: COLOR_FONDO, border: `1px solid ${COLOR_BORDE}`, borderRadius: 8, padding: 8, cursor: indiceCola === colaEscaneados.length - 1 ? 'not-allowed' : 'pointer', opacity: indiceCola === colaEscaneados.length - 1 ? 0.4 : 1 }}>
                       <ChevronRight size={16} color={COLOR_TEXTO_SEC} />
                     </button>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button onClick={() => quitarDeCola(indiceCola)} style={{ background: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 8, padding: '6px 12px', color: COLOR_TEXTO_SEC, fontSize: 12, cursor: 'pointer' }}>
-                      Omitir este
-                    </button>
+                    <button onClick={() => quitarDeCola(indiceCola)} style={{ background: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 8, padding: '6px 12px', color: COLOR_TEXTO_SEC, fontSize: 12, cursor: 'pointer' }}>Omitir este</button>
                     <button onClick={cerrarCola} style={{ background: 'transparent', border: 'none', borderRadius: 8, padding: 6, color: COLOR_TEXTO_SEC, cursor: 'pointer' }}>
                       <X size={16} />
                     </button>
@@ -434,6 +400,7 @@ export default function Home() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32 }}>
 
+                {/* Columna izquierda - formulario */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
                   <div>
@@ -447,6 +414,7 @@ export default function Home() {
                     </select>
                   </div>
 
+                  {/* Boton escaner — solo para usuarios registrados */}
                   {usuario ? (
                     <div onClick={() => setMostrarEscaner(true)} style={{ border: `1.5px dashed ${COLOR_ACENTO}`, borderRadius: 16, padding: '28px 20px', textAlign: 'center', backgroundColor: COLOR_CARD, cursor: 'pointer' }}>
                       <div style={{ width: 52, height: 52, backgroundColor: COLOR_FONDO, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
@@ -471,6 +439,7 @@ export default function Home() {
                     <div style={{ flex: 1, height: 1, backgroundColor: COLOR_BORDE }} />
                   </div>
 
+                  {/* Numero + Serie */}
                   <div>
                     <span style={label}>Numero {juegoSeleccionado.serie_digits > 0 && '— Serie'}</span>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -492,6 +461,7 @@ export default function Home() {
                     </div>
                   </div>
 
+                  {/* Signo zodiacal */}
                   {juegoSeleccionado.usa_signo && (
                     <div>
                       <span style={label}>Signo zodiacal</span>
@@ -502,56 +472,53 @@ export default function Home() {
                     </div>
                   )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: juegoSeleccionado.tiene_fraccion ? '1fr 1fr' : '1fr', gap: 12 }}>
-                    {juegoSeleccionado.tiene_fraccion && (
-                      <div>
-                        <span style={label}>
-                          Fracciones que tienes
-                          {juegoSeleccionado.total_fracciones > 1 && (
-                            <span style={{ color: COLOR_TEXTO_TERC, fontWeight: 400, marginLeft: 6 }}>
-                              (el juego tiene {juegoSeleccionado.total_fracciones} en total)
-                            </span>
-                          )}
-                        </span>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                          {Array.from({ length: juegoSeleccionado.total_fracciones || 10 }, (_, i) => i + 1).map(f => (
-                            <button
-                              key={f}
-                              type="button"
-                              onClick={() => {
-                                const fNum = f;
-                                const yaSeleccionada = fraccionesSeleccionadas.includes(fNum);
-                                if (yaSeleccionada) {
-                                  setFraccionesSeleccionadas(prev => prev.filter(x => x !== fNum));
-                                } else {
-                                  setFraccionesSeleccionadas(prev => [...prev, fNum].sort((a, b) => a - b));
-                                }
-                                setResultado(null);
-                              }}
-                              style={{
-                                width: 40, height: 40, borderRadius: 10, border: `1.5px solid ${fraccionesSeleccionadas.includes(f) ? COLOR_ACENTO : COLOR_BORDE}`,
-                                backgroundColor: fraccionesSeleccionadas.includes(f) ? '#3a2f0a' : COLOR_FONDO,
-                                color: fraccionesSeleccionadas.includes(f) ? COLOR_ACENTO : COLOR_TEXTO_SEC,
-                                fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                              }}
-                            >
-                              {f}
-                            </button>
-                          ))}
-                        </div>
-                        {fraccionesSeleccionadas.length > 0 && (
-                          <p style={{ fontSize: 11, color: COLOR_ACENTO, marginTop: 6 }}>
-                            Seleccionadas: {fraccionesSeleccionadas.join(', ')}
-                          </p>
-                        )}
-                      </div>
-                    )}
+                  {/* Selector de fracciones múltiples */}
+                  {juegoSeleccionado.tiene_fraccion && (
                     <div>
-                      <span style={label}>Fecha sorteo</span>
-                      <input type="date" value={fechaSorteo} onChange={e => { setFechaSorteo(e.target.value); setResultado(null); }} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0F2FE', outline: 'none', colorScheme: 'dark' }} />
+                      <span style={label}>
+                        Fracciones que tienes
+                        <span style={{ color: COLOR_TEXTO_TERC, fontWeight: 400, marginLeft: 6, textTransform: 'none', letterSpacing: 0 }}>
+                          ({juegoSeleccionado.total_fracciones || 10} en total)
+                        </span>
+                      </span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {Array.from({ length: juegoSeleccionado.total_fracciones || 10 }, (_, i) => i + 1).map(f => (
+                          <button
+                            key={f}
+                            type="button"
+                            onClick={() => toggleFraccion(f)}
+                            style={{
+                              width: 40, height: 40, borderRadius: 10,
+                              border: `1.5px solid ${fraccionesSeleccionadas.includes(f) ? COLOR_ACENTO : COLOR_BORDE}`,
+                              backgroundColor: fraccionesSeleccionadas.includes(f) ? '#3a2f0a' : COLOR_FONDO,
+                              color: fraccionesSeleccionadas.includes(f) ? COLOR_ACENTO : COLOR_TEXTO_SEC,
+                              fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            {f}
+                          </button>
+                        ))}
+                      </div>
+                      {fraccionesSeleccionadas.length > 0 ? (
+                        <p style={{ fontSize: 11, color: COLOR_ACENTO, marginTop: 8 }}>
+                          Seleccionadas: {fraccionesSeleccionadas.join(', ')}
+                        </p>
+                      ) : (
+                        <p style={{ fontSize: 11, color: COLOR_TEXTO_TERC, marginTop: 8 }}>
+                          Toca las fracciones que aparecen en tu billete
+                        </p>
+                      )}
                     </div>
+                  )}
+
+                  {/* Fecha sorteo */}
+                  <div>
+                    <span style={label}>Fecha sorteo</span>
+                    <input type="date" value={fechaSorteo} onChange={e => { setFechaSorteo(e.target.value); setResultado(null); }} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0F2FE', outline: 'none', colorScheme: 'dark' }} />
                   </div>
 
+                  {/* Valor de apuesta */}
                   <div>
                     <span style={label}>Valor de la apuesta (opcional)</span>
                     <input type="text" placeholder="$2.000" value={valorApuesta} onChange={e => setValorApuesta(e.target.value)} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px 14px', fontSize: 14, color: '#E0F2FE', outline: 'none' }} />
@@ -560,9 +527,9 @@ export default function Home() {
                   <button onClick={verificar} disabled={!numero || verificando} style={{ width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12, padding: '16px', fontSize: 16, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (!numero || verificando) ? 0.4 : 1, boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}>
                     <Search size={20} /> {verificando ? 'Verificando...' : 'Verificar boleto'}
                   </button>
-
                 </div>
 
+                {/* Columna derecha - resultado */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                   {!resultado ? (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: 40, textAlign: 'center', backgroundColor: COLOR_FONDO, minHeight: 300 }}>
@@ -588,10 +555,10 @@ export default function Home() {
                         <div style={{ padding: 20, backgroundColor: COLOR_FONDO, display: 'flex', flexDirection: 'column', gap: 12 }}>
                           {[
                             { lbl: 'Tu numero', val: `${numero.padStart(juegoSeleccionado.numero_digits || 4,'0')}${serie ? ' – ' + serie.toUpperCase() : ''}` },
-                            juegoSeleccionado.tiene_fraccion && { lbl: 'Fraccion', val: `${fraccion}/10` },
+                            fraccionesSeleccionadas.length > 0 && { lbl: 'Fracciones', val: fraccionesSeleccionadas.join(', ') },
                             { lbl: 'Juego', val: juegoSeleccionado.nombre },
                             fechaSorteo && { lbl: 'Fecha sorteo', val: fechaSorteo },
-                            resultado.esHistorico !== undefined && { lbl: 'Tipo de boleto', val: resultado.esHistorico ? 'Sorteo antiguo (historico)' : 'Sorteo reciente' },
+                            resultado.esHistorico !== undefined && { lbl: 'Tipo', val: resultado.esHistorico ? 'Sorteo historico' : 'Sorteo reciente' },
                             resultado.sorteo && { lbl: 'Numero ganador', val: `${resultado.sorteo.numero}${resultado.sorteo.serie ? ' – ' + resultado.sorteo.serie : ''}` },
                           ].filter(Boolean).map(({ lbl, val }) => (
                             <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, paddingBottom: 12, borderBottom: `1px solid ${COLOR_BORDE}` }}>
@@ -630,6 +597,8 @@ export default function Home() {
               </div>
               {cargando ? (
                 <p style={{ textAlign: 'center', color: COLOR_TEXTO_SEC, fontSize: 14, padding: 40 }}>Cargando...</p>
+              ) : resultadosReales.length === 0 ? (
+                <p style={{ textAlign: 'center', color: COLOR_TEXTO_SEC, fontSize: 14, padding: 40 }}>No hay resultados disponibles aun.</p>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
                   {resultadosReales.map((s) => (
@@ -658,7 +627,6 @@ export default function Home() {
           {/* ── MIS NUMEROS ── */}
           {tab === 'numeros' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-
               {!usuario ? (
                 <div style={{ textAlign: 'center', padding: '80px 0' }}>
                   <div style={{ width: 72, height: 72, backgroundColor: COLOR_CARD, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
@@ -672,12 +640,12 @@ export default function Home() {
                 </div>
               ) : (
                 <>
+                  {/* Pendientes */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                       <span style={label}>Pendientes</span>
                       {perfil?.plan !== 'premium' && <span style={{ fontSize: 12, color: COLOR_TEXTO_SEC }}>{pendientes.length}/{getLimite()}</span>}
                     </div>
-
                     {pendientes.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: '40px 0' }}>
                         <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14 }}>No tienes boletos pendientes</p>
@@ -693,13 +661,15 @@ export default function Home() {
                               </button>
                             </div>
                             <p style={{ fontSize: 22, fontWeight: 900, color: '#E0F2FE', letterSpacing: 3 }}>{b.numero}{b.serie ? ` – ${b.serie}` : ''}</p>
-                            <p style={{ fontSize: 11, color: COLOR_TEXTO_SEC, marginTop: 6 }}>{b.fraccion ? `Fraccion ${b.fraccion}/10 · ` : ''}{b.fecha_sorteo || 'Sin fecha'}</p>
+                            {b.fracciones?.length > 0 && (
+                              <p style={{ fontSize: 11, color: COLOR_ACENTO, marginTop: 4 }}>Fracciones: {b.fracciones.join(', ')}</p>
+                            )}
+                            <p style={{ fontSize: 11, color: COLOR_TEXTO_SEC, marginTop: 4 }}>{b.fecha_sorteo || 'Sin fecha'}</p>
                             <span style={{ display: 'inline-block', marginTop: 8, fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20, backgroundColor: '#3a2f0a', color: COLOR_ACENTO }}>⏳ Pendiente</span>
                           </div>
                         ))}
                       </div>
                     )}
-
                     {pendientes.length >= getLimite() && perfil?.plan !== 'premium' && (
                       <button onClick={() => setMostrarPremium(true)} style={{ width: '100%', backgroundColor: 'transparent', border: `1.5px dashed ${COLOR_BORDE}`, borderRadius: 16, padding: 24, textAlign: 'center', cursor: 'pointer', marginTop: 14 }}>
                         <Crown size={28} color={COLOR_ACENTO} style={{ margin: '0 auto 10px', display: 'block' }} />
@@ -709,6 +679,7 @@ export default function Home() {
                     )}
                   </div>
 
+                  {/* Historial */}
                   <div>
                     <span style={label}>Historial verificado</span>
                     {historicos.length === 0 ? (
@@ -729,8 +700,11 @@ export default function Home() {
                                 {b.resultado === 'ganador' ? '🏆 Ganador' : '❌ Sin premio'}
                               </span>
                             </div>
-                            {b.premio && <p style={{ fontSize: 14, color: '#10B981', fontWeight: 700, marginTop: 8 }}>{b.premio}</p>}
-                            <p style={{ fontSize: 11, color: COLOR_TEXTO_SEC, marginTop: 6 }}>{b.fecha_sorteo || 'Sin fecha'}</p>
+                            {b.fracciones?.length > 0 && (
+                              <p style={{ fontSize: 11, color: COLOR_TEXTO_SEC, marginTop: 4 }}>Fracciones: {b.fracciones.join(', ')}</p>
+                            )}
+                            {b.premio && <p style={{ fontSize: 14, color: '#10B981', fontWeight: 700, marginTop: 6 }}>{b.premio}</p>}
+                            <p style={{ fontSize: 11, color: COLOR_TEXTO_SEC, marginTop: 4 }}>{b.fecha_sorteo || 'Sin fecha'}</p>
                           </div>
                         ))}
                       </div>
@@ -744,7 +718,6 @@ export default function Home() {
           {/* ── AJUSTES ── */}
           {tab === 'ajustes' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32 }}>
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {!usuario ? (
                   <div style={{ textAlign: 'center', padding: '80px 0' }}>
