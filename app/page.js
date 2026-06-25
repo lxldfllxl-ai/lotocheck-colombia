@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Search, Calendar, Ticket, Settings, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, ChevronLeft, X } from 'lucide-react';
+import { Search, Calendar, Ticket, Settings, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, ChevronLeft, X, Edit2, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { verificarBoletoContraResultados } from '../lib/verificacion';
 import ModalPremium from './components/ModalPremium';
@@ -31,6 +31,10 @@ export default function Home() {
   const [nombresPlanes, setNombresPlanes] = useState({ gratis: 'Gratis', basico: 'Basico', pro: 'Pro', premium: 'Premium' });
   const [colaEscaneados, setColaEscaneados] = useState([]);
   const [indiceCola, setIndiceCola] = useState(0);
+
+  // Preview editable de boleto escaneado (columna derecha antes de verificar)
+  const [previewEscaner, setPreviewEscaner] = useState(null); // null o { loteria, numero, serie, fracciones, confianza }
+  const [editandoPreview, setEditandoPreview] = useState(false);
 
   const COLOR_FONDO = '#0B1F3A';
   const COLOR_CARD = '#142A4A';
@@ -100,6 +104,7 @@ export default function Home() {
     setJuegoSeleccionado(j);
     setResultado(null);
     setNumero(''); setSerie(''); setFraccionesSeleccionadas([]); setSigno('');
+    setPreviewEscaner(null); setEditandoPreview(false);
   }
 
   function toggleFraccion(f) {
@@ -121,12 +126,21 @@ export default function Home() {
     if (juegoMatch) setJuegoSeleccionado(juegoMatch);
     setNumero(b.numero || '');
     setSerie(b.serie || '');
-    setFraccionesSeleccionadas(Array.isArray(b.fracciones) && b.fracciones.length > 0 ? b.fracciones : []);
+    const fracs = Array.isArray(b.fracciones) ? b.fracciones.map(f => parseInt(f)).filter(f => !isNaN(f) && f > 0) : [];
+    setFraccionesSeleccionadas(fracs);
     setSigno(b.signo || '');
     setValorApuesta(b.valorApuesta || '');
     setFechaSorteo(b.fechaSorteo || '');
     setResultado(null);
     setIndiceCola(indice);
+    setPreviewEscaner({
+      loteria: b.loteria || '',
+      numero: b.numero || '',
+      serie: b.serie || '',
+      fracciones: fracs,
+      confianza: b.confianza || 'media',
+    });
+    setEditandoPreview(false);
   }
 
   function manejarBoletosDetectados(boletosDetectados) {
@@ -143,6 +157,7 @@ export default function Home() {
   function quitarDeCola(indice) {
     const nuevaCola = colaEscaneados.filter((_, i) => i !== indice);
     setColaEscaneados(nuevaCola);
+    setPreviewEscaner(null);
     if (nuevaCola.length === 0) { setIndiceCola(0); return; }
     const nuevoIndice = Math.min(indice, nuevaCola.length - 1);
     cargarBoletoDeColaDirecto(nuevaCola, nuevoIndice);
@@ -151,6 +166,15 @@ export default function Home() {
   function cerrarCola() {
     setColaEscaneados([]);
     setIndiceCola(0);
+    setPreviewEscaner(null);
+    setEditandoPreview(false);
+  }
+
+  function confirmarPreviewEdicion() {
+    // El usuario editó los campos del formulario directamente, solo cerramos modo edición
+    setEditandoPreview(false);
+    setPreviewEscaner(prev => prev ? { ...prev, numero, serie, fracciones: fraccionesSeleccionadas } : null);
+    setResultado(null);
   }
 
   async function verificar() {
@@ -173,7 +197,8 @@ export default function Home() {
 
     if (verificacion.resultado === 'pendiente') {
       const motivo = verificacion.detalle?.motivo;
-      const titulo = motivo === 'sorteo_futuro' ? 'Sorteo pendiente de realizarse' : motivo === 'sin_resultado_aun' ? 'Resultado aun no disponible' : 'Sorteo pendiente';
+      const titulo = motivo === 'sorteo_futuro' ? 'Sorteo pendiente de realizarse' :
+                     motivo === 'sin_resultado_aun' ? 'Resultado aun no disponible' : 'Sorteo pendiente';
       setResultado({ tipo: 'pendiente', titulo, premio: null, sorteo: null });
       return;
     }
@@ -190,23 +215,6 @@ export default function Home() {
     } else {
       setResultado({ tipo: 'nada', titulo: 'Sin premio esta vez', premio: null, sorteo: detalle.sorteo, esHistorico: detalle.esHistorico });
     }
-  }
-
-  function getLimite() {
-    if (!usuario) return configLimites.gratis || 2;
-    if (perfil?.plan === 'premium') return Infinity;
-    if (perfil?.plan === 'pro') return configLimites.pro || 25;
-    if (perfil?.plan === 'basico') return configLimites.basico || 10;
-    return configLimites.gratis || 2;
-  }
-
-  function nombrePlanActual() {
-    if (!usuario) return null;
-    return nombresPlanes[perfil?.plan || 'gratis'] || 'Gratis';
-  }
-
-  function boletosPendientes() {
-    return boletos.filter(b => b.resultado === 'pendiente');
   }
 
   async function guardarBoleto() {
@@ -239,10 +247,29 @@ export default function Home() {
     if (error) { console.error(error); return; }
 
     setBoletos(prev => [data, ...prev]);
+    setResultado(null);
+    setPreviewEscaner(null);
 
     if (colaEscaneados.length > 0) {
       quitarDeCola(indiceCola);
     }
+  }
+
+  function getLimite() {
+    if (!usuario) return configLimites.gratis || 2;
+    if (perfil?.plan === 'premium') return Infinity;
+    if (perfil?.plan === 'pro') return configLimites.pro || 25;
+    if (perfil?.plan === 'basico') return configLimites.basico || 10;
+    return configLimites.gratis || 2;
+  }
+
+  function nombrePlanActual() {
+    if (!usuario) return null;
+    return nombresPlanes[perfil?.plan || 'gratis'] || 'Gratis';
+  }
+
+  function boletosPendientes() {
+    return boletos.filter(b => b.resultado === 'pendiente');
   }
 
   async function eliminarBoleto(id) {
@@ -268,6 +295,16 @@ export default function Home() {
   const pendientes = boletosPendientes();
   const historicos = boletos.filter(b => b.resultado !== 'pendiente');
   const porCategoria = juegos.reduce((acc, j) => { if (!acc[j.categoria]) acc[j.categoria] = []; acc[j.categoria].push(j); return acc; }, {});
+
+  // Lógica del botón principal de acción
+  const hayNumero = numero.trim().length > 0;
+  const haVerificado = resultado !== null;
+  const labelBotonPrincipal = verificando ? 'Verificando...' :
+    !hayNumero ? 'Verificar / Guardar' :
+    !haVerificado ? 'Verificar / Guardar' :
+    resultado?.tipo === 'error' ? 'Verificar / Guardar' : 'Verificar de nuevo';
+
+  const accionBotonPrincipal = haVerificado && resultado?.tipo !== 'error' ? verificar : verificar;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: COLOR_FONDO, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '10px', boxSizing: 'border-box' }}>
@@ -377,7 +414,7 @@ export default function Home() {
           {/* ── VERIFICAR / GUARDAR ── */}
           {tab === 'verificar' && juegoSeleccionado && (
             <div>
-              {/* Navegador de cola */}
+              {/* Navegador de cola escaneados */}
               {colaEscaneados.length > 0 && (
                 <div style={{ ...card, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -400,7 +437,7 @@ export default function Home() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32 }}>
 
-                {/* Columna izquierda - formulario */}
+                {/* Columna izquierda — formulario */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
                   <div>
@@ -414,22 +451,22 @@ export default function Home() {
                     </select>
                   </div>
 
-                  {/* Boton escaner — solo para usuarios registrados */}
+                  {/* Boton escaner */}
                   {usuario ? (
-                    <div onClick={() => setMostrarEscaner(true)} style={{ border: `1.5px dashed ${COLOR_ACENTO}`, borderRadius: 16, padding: '28px 20px', textAlign: 'center', backgroundColor: COLOR_CARD, cursor: 'pointer' }}>
-                      <div style={{ width: 52, height: 52, backgroundColor: COLOR_FONDO, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                        <Camera size={24} color={COLOR_ACENTO} />
+                    <div onClick={() => setMostrarEscaner(true)} style={{ border: `1.5px dashed ${COLOR_ACENTO}`, borderRadius: 16, padding: '20px', textAlign: 'center', backgroundColor: COLOR_CARD, cursor: 'pointer' }}>
+                      <div style={{ width: 44, height: 44, backgroundColor: COLOR_FONDO, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+                        <Camera size={20} color={COLOR_ACENTO} />
                       </div>
                       <p style={{ color: '#E0F2FE', fontWeight: 600, fontSize: 14 }}>Escanear boleto con IA</p>
-                      <p style={{ color: COLOR_TEXTO_SEC, fontSize: 12, marginTop: 5 }}>Puedes escanear varios a la vez</p>
+                      <p style={{ color: COLOR_TEXTO_SEC, fontSize: 12, marginTop: 4 }}>Detecta numero, serie y fracciones automaticamente</p>
                     </div>
                   ) : (
-                    <div onClick={() => window.location.href = '/login'} style={{ border: `1.5px dashed ${COLOR_BORDE}`, borderRadius: 16, padding: '28px 20px', textAlign: 'center', backgroundColor: COLOR_CARD, cursor: 'pointer' }}>
-                      <div style={{ width: 52, height: 52, backgroundColor: COLOR_FONDO, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                        <Camera size={24} color={COLOR_TEXTO_TERC} />
+                    <div onClick={() => window.location.href = '/login'} style={{ border: `1.5px dashed ${COLOR_BORDE}`, borderRadius: 16, padding: '20px', textAlign: 'center', backgroundColor: COLOR_CARD, cursor: 'pointer' }}>
+                      <div style={{ width: 44, height: 44, backgroundColor: COLOR_FONDO, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+                        <Camera size={20} color={COLOR_TEXTO_TERC} />
                       </div>
                       <p style={{ color: COLOR_TEXTO_SEC, fontWeight: 600, fontSize: 14 }}>Escanear boleto con IA</p>
-                      <p style={{ color: COLOR_TEXTO_TERC, fontSize: 12, marginTop: 5 }}>Inicia sesion para usar esta funcion</p>
+                      <p style={{ color: COLOR_TEXTO_TERC, fontSize: 12, marginTop: 4 }}>Inicia sesion para usar esta funcion</p>
                     </div>
                   )}
 
@@ -445,23 +482,31 @@ export default function Home() {
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                       <input
                         type="text" maxLength={juegoSeleccionado.numero_digits || 4} placeholder="0000" value={numero}
-                        onChange={e => { setNumero(e.target.value); setResultado(null); }}
-                        style={{ flex: '1 1 160px', minWidth: 0, backgroundColor: COLOR_FONDO, border: `1.5px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '14px 8px', textAlign: 'center', fontSize: 28, fontWeight: 700, letterSpacing: 8, color: '#fff', outline: 'none' }}
+                        onChange={e => { setNumero(e.target.value); setResultado(null); if (previewEscaner) setEditandoPreview(true); }}
+                        style={{ flex: '1 1 160px', minWidth: 0, backgroundColor: COLOR_FONDO, border: `1.5px solid ${editandoPreview ? COLOR_ACENTO : COLOR_BORDE}`, borderRadius: 12, padding: '14px 8px', textAlign: 'center', fontSize: 28, fontWeight: 700, letterSpacing: 8, color: '#fff', outline: 'none' }}
                       />
                       {juegoSeleccionado.serie_digits > 0 && (
                         <>
                           <span style={{ color: COLOR_BORDE, fontSize: 24, flexShrink: 0 }}>–</span>
                           <input
                             type="text" maxLength={3} placeholder="A00" value={serie}
-                            onChange={e => { setSerie(e.target.value); setResultado(null); }}
-                            style={{ flex: '0 0 100px', minWidth: 100, backgroundColor: COLOR_FONDO, border: `1.5px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '14px 8px', textAlign: 'center', fontSize: 22, fontWeight: 700, letterSpacing: 5, color: '#fff', outline: 'none' }}
+                            onChange={e => { setSerie(e.target.value); setResultado(null); if (previewEscaner) setEditandoPreview(true); }}
+                            style={{ flex: '0 0 100px', minWidth: 100, backgroundColor: COLOR_FONDO, border: `1.5px solid ${editandoPreview ? COLOR_ACENTO : COLOR_BORDE}`, borderRadius: 12, padding: '14px 8px', textAlign: 'center', fontSize: 22, fontWeight: 700, letterSpacing: 5, color: '#fff', outline: 'none' }}
                           />
                         </>
                       )}
                     </div>
+                    {editandoPreview && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                        <p style={{ fontSize: 11, color: COLOR_ACENTO }}>Editando datos escaneados</p>
+                        <button onClick={confirmarPreviewEdicion} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10B981', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+                          <Check size={12} /> Confirmar
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Signo zodiacal */}
+                  {/* Signo */}
                   {juegoSeleccionado.usa_signo && (
                     <div>
                       <span style={label}>Signo zodiacal</span>
@@ -472,7 +517,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* Selector de fracciones múltiples */}
+                  {/* Fracciones */}
                   {juegoSeleccionado.tiene_fraccion && (
                     <div>
                       <span style={label}>
@@ -501,45 +546,105 @@ export default function Home() {
                         ))}
                       </div>
                       {fraccionesSeleccionadas.length > 0 ? (
-                        <p style={{ fontSize: 11, color: COLOR_ACENTO, marginTop: 8 }}>
-                          Seleccionadas: {fraccionesSeleccionadas.join(', ')}
-                        </p>
+                        <p style={{ fontSize: 11, color: COLOR_ACENTO, marginTop: 8 }}>Seleccionadas: {fraccionesSeleccionadas.join(', ')}</p>
                       ) : (
-                        <p style={{ fontSize: 11, color: COLOR_TEXTO_TERC, marginTop: 8 }}>
-                          Toca las fracciones que aparecen en tu billete
-                        </p>
+                        <p style={{ fontSize: 11, color: COLOR_TEXTO_TERC, marginTop: 8 }}>Toca las fracciones que aparecen en tu billete</p>
                       )}
                     </div>
                   )}
 
-                  {/* Fecha sorteo */}
+                  {/* Fecha */}
                   <div>
                     <span style={label}>Fecha sorteo</span>
                     <input type="date" value={fechaSorteo} onChange={e => { setFechaSorteo(e.target.value); setResultado(null); }} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0F2FE', outline: 'none', colorScheme: 'dark' }} />
                   </div>
 
-                  {/* Valor de apuesta */}
+                  {/* Valor */}
                   <div>
                     <span style={label}>Valor de la apuesta (opcional)</span>
                     <input type="text" placeholder="$2.000" value={valorApuesta} onChange={e => setValorApuesta(e.target.value)} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px 14px', fontSize: 14, color: '#E0F2FE', outline: 'none' }} />
                   </div>
 
+                  {/* Botón principal */}
                   <button onClick={verificar} disabled={!numero || verificando} style={{ width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12, padding: '16px', fontSize: 16, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (!numero || verificando) ? 0.4 : 1, boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}>
-                    <Search size={20} /> {verificando ? 'Verificando...' : 'Verificar boleto'}
+                    <Search size={20} /> {labelBotonPrincipal}
                   </button>
+
+                  {/* Guardar sin verificar — solo si hay numero pero no ha verificado */}
+                  {hayNumero && !haVerificado && usuario && (
+                    <button onClick={guardarBoleto} disabled={guardando} style={{ width: '100%', backgroundColor: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '13px', fontSize: 14, color: COLOR_TEXTO_SEC, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <Plus size={16} /> {guardando ? 'Guardando...' : 'Guardar sin verificar (pendiente)'}
+                    </button>
+                  )}
                 </div>
 
-                {/* Columna derecha - resultado */}
+                {/* Columna derecha — preview / resultado */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                  {!resultado ? (
+
+                  {/* Preview de datos escaneados (antes de verificar) */}
+                  {previewEscaner && !resultado && (
+                    <div style={{ ...card, border: `1px solid ${previewEscaner.confianza === 'alta' ? '#10B981' : COLOR_ACENTO}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 20 }}>📸</span>
+                          <p style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Detectado por IA</p>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, backgroundColor: previewEscaner.confianza === 'alta' ? '#0a5a4a' : '#3a2f0a', color: previewEscaner.confianza === 'alta' ? '#10B981' : COLOR_ACENTO }}>
+                            Confianza {previewEscaner.confianza}
+                          </span>
+                          <button onClick={() => { setEditandoPreview(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_TEXTO_SEC }}>
+                            <Edit2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 10, borderBottom: `1px solid ${COLOR_BORDE}` }}>
+                          <span style={{ color: COLOR_TEXTO_SEC, fontSize: 13 }}>Juego detectado</span>
+                          <span style={{ color: '#E0F2FE', fontSize: 13, fontWeight: 600 }}>{previewEscaner.loteria || 'No detectado'}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 10, borderBottom: `1px solid ${COLOR_BORDE}` }}>
+                          <span style={{ color: COLOR_TEXTO_SEC, fontSize: 13 }}>Numero</span>
+                          <span style={{ color: COLOR_ACENTO, fontSize: 20, fontWeight: 800, letterSpacing: 3 }}>{numero || '----'}{serie ? ` – ${serie}` : ''}</span>
+                        </div>
+                        {fraccionesSeleccionadas.length > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 10, borderBottom: `1px solid ${COLOR_BORDE}` }}>
+                            <span style={{ color: COLOR_TEXTO_SEC, fontSize: 13 }}>Fracciones</span>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                              {fraccionesSeleccionadas.map(f => (
+                                <span key={f} style={{ width: 28, height: 28, borderRadius: 7, backgroundColor: '#3a2f0a', border: `1px solid ${COLOR_ACENTO}`, color: COLOR_ACENTO, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{f}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {fechaSorteo && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: COLOR_TEXTO_SEC, fontSize: 13 }}>Fecha sorteo</span>
+                            <span style={{ color: '#E0F2FE', fontSize: 13, fontWeight: 600 }}>{fechaSorteo}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <p style={{ color: COLOR_TEXTO_TERC, fontSize: 12, marginTop: 16, textAlign: 'center' }}>
+                        Revisa los datos en el formulario y toca "Verificar / Guardar"
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Estado vacío (sin escaner y sin resultado) */}
+                  {!previewEscaner && !resultado && (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: 40, textAlign: 'center', backgroundColor: COLOR_FONDO, minHeight: 300 }}>
                       <div style={{ width: 64, height: 64, backgroundColor: COLOR_CARD, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                         <Search size={28} color={COLOR_BORDE} />
                       </div>
                       <p style={{ color: COLOR_TEXTO_SEC, fontSize: 15, fontWeight: 500 }}>Ingresa un numero para verificar</p>
-                      <p style={{ color: COLOR_TEXTO_TERC, fontSize: 13, marginTop: 8 }}>El resultado aparecera aqui</p>
+                      <p style={{ color: COLOR_TEXTO_TERC, fontSize: 13, marginTop: 8 }}>o escanea tu boleto con la camara</p>
                     </div>
-                  ) : (
+                  )}
+
+                  {/* Resultado de verificacion */}
+                  {resultado && (
                     <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : COLOR_BORDE}` }}>
                       <div style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: 16, backgroundColor: resultado.tipo === 'mayor' ? '#0a3a2a' : resultado.tipo === 'seco' ? '#3a2f0a' : COLOR_FONDO }}>
                         <div style={{ width: 60, height: 60, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, backgroundColor: resultado.tipo === 'mayor' ? '#0a5a4a' : resultado.tipo === 'seco' ? '#5a4a0a' : COLOR_CARD, flexShrink: 0 }}>
@@ -567,14 +672,22 @@ export default function Home() {
                             </div>
                           ))}
 
-                          {resultado.tipo !== 'pendiente' && (
-                            <button onClick={guardarBoleto} disabled={guardando} style={{ width: '100%', marginTop: 4, backgroundColor: 'transparent', border: `1.5px solid ${COLOR_ACENTO}`, borderRadius: 10, padding: '13px', fontSize: 14, fontWeight: 700, color: COLOR_ACENTO, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                              <Plus size={16} /> {guardando ? 'Guardando...' : colaEscaneados.length > 0 ? 'Guardar y siguiente boleto' : 'Guardar en mi historial'}
-                            </button>
-                          )}
-                          {resultado.tipo === 'pendiente' && (
-                            <button onClick={guardarBoleto} disabled={guardando} style={{ width: '100%', marginTop: 4, backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '13px', fontSize: 14, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                              <Plus size={16} /> {guardando ? 'Guardando...' : colaEscaneados.length > 0 ? 'Guardar y siguiente boleto' : 'Guardar y notificar cuando salga'}
+                          {usuario ? (
+                            <>
+                              {resultado.tipo !== 'pendiente' && (
+                                <button onClick={guardarBoleto} disabled={guardando} style={{ width: '100%', marginTop: 4, backgroundColor: 'transparent', border: `1.5px solid ${COLOR_ACENTO}`, borderRadius: 10, padding: '13px', fontSize: 14, fontWeight: 700, color: COLOR_ACENTO, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                                  <Plus size={16} /> {guardando ? 'Guardando...' : colaEscaneados.length > 0 ? 'Guardar y siguiente boleto' : 'Guardar en mi historial'}
+                                </button>
+                              )}
+                              {resultado.tipo === 'pendiente' && (
+                                <button onClick={guardarBoleto} disabled={guardando} style={{ width: '100%', marginTop: 4, backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '13px', fontSize: 14, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                                  <Plus size={16} /> {guardando ? 'Guardando...' : colaEscaneados.length > 0 ? 'Guardar y siguiente boleto' : 'Guardar y notificar cuando salga'}
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <button onClick={() => window.location.href = '/login'} style={{ width: '100%', marginTop: 4, backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '13px', fontSize: 14, fontWeight: 700, color: '#1A1500', cursor: 'pointer' }}>
+                              Inicia sesion para guardar
                             </button>
                           )}
                         </div>
@@ -640,7 +753,6 @@ export default function Home() {
                 </div>
               ) : (
                 <>
-                  {/* Pendientes */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                       <span style={label}>Pendientes</span>
@@ -679,7 +791,6 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* Historial */}
                   <div>
                     <span style={label}>Historial verificado</span>
                     {historicos.length === 0 ? (
