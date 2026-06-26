@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Calendar, Ticket, Settings, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, X, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { verificarBoletoContraResultados } from '../lib/verificacion';
@@ -34,9 +34,6 @@ export default function Home() {
   const [boletosEscaneados, setBoletosEscaneados] = useState([]); // [{...datos, estado:'pendiente'|'guardado'|'seleccionado'}]
   const [indiceSeleccionado, setIndiceSeleccionado] = useState(null);
 
-  // Para cargar fracciones después de que el juego se actualice
-  const [fraccionesPendientes, setFraccionesPendientes] = useState([]);
-
   const COLOR_FONDO = '#0B1F3A';
   const COLOR_CARD = '#142A4A';
   const COLOR_BORDE = '#1A3A5F';
@@ -62,8 +59,6 @@ export default function Home() {
       }
     }).catch(() => {});
   }, []);
-
-  // useEffect removido — las fracciones se aplican directamente en la función de selección
 
   async function cargarJuegos() {
     try {
@@ -138,9 +133,8 @@ export default function Home() {
     setResultado(null);
 
     if (juegoMatch) {
-      // Guardar fracciones para aplicar después del useEffect de juegoSeleccionado
-      setFraccionesPendientes(fracs);
       setJuegoSeleccionado(juegoMatch);
+      setFraccionesSeleccionadas(fracs);
     } else {
       // No encontró juego — aplicar fracciones directamente
       setFraccionesSeleccionadas(fracs);
@@ -180,8 +174,8 @@ export default function Home() {
     setResultado(null);
 
     if (juegoMatch) {
-      setFraccionesPendientes(fracs);
       setJuegoSeleccionado(juegoMatch);
+      setFraccionesSeleccionadas(fracs);
     } else {
       setFraccionesSeleccionadas(fracs);
     }
