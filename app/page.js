@@ -63,13 +63,7 @@ export default function Home() {
     }).catch(() => {});
   }, []);
 
-  // Cuando el juego cambia, aplicar fracciones pendientes del escaner
-  useEffect(() => {
-    if (fraccionesPendientes.length > 0) {
-      setFraccionesSeleccionadas([...fraccionesPendientes]);
-      setFraccionesPendientes([]);
-    }
-  }, [juegoSeleccionado, fraccionesPendientes]);
+  // useEffect removido — las fracciones se aplican directamente en la función de selección
 
   async function cargarJuegos() {
     try {
