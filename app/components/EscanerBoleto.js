@@ -91,7 +91,7 @@ export default function EscanerBoleto({ onBoletosDetectados, onCerrar }) {
           loteria: b.loteria || '',
           numero: b.numero || '',
           serie: b.serie || '',
-          fraccion: b.fraccion || '',
+          fracciones: Array.isArray(b.fracciones) ? b.fracciones.map(f => parseInt(f)).filter(f => !isNaN(f) && f > 0) : [],
           valorApuesta: b.valorApuesta || '',
           fechaSorteo: b.fechaSorteo || '',
           signo: b.signo || '',
