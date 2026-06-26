@@ -35,7 +35,7 @@ export default function Home() {
   const [indiceSeleccionado, setIndiceSeleccionado] = useState(null);
 
   // Para cargar fracciones después de que el juego se actualice
-  const fraccionesPendientes = useRef([]);
+  const [fraccionesPendientes, setFraccionesPendientes] = useState([]);
 
   const COLOR_FONDO = '#0B1F3A';
   const COLOR_CARD = '#142A4A';
@@ -65,11 +65,11 @@ export default function Home() {
 
   // Cuando el juego cambia, aplicar fracciones pendientes del escaner
   useEffect(() => {
-    if (fraccionesPendientes.current.length > 0) {
-      setFraccionesSeleccionadas(fraccionesPendientes.current);
-      fraccionesPendientes.current = [];
+    if (fraccionesPendientes.length > 0) {
+      setFraccionesSeleccionadas([...fraccionesPendientes]);
+      setFraccionesPendientes([]);
     }
-  }, [juegoSeleccionado]);
+  }, [juegoSeleccionado, fraccionesPendientes]);
 
   async function cargarJuegos() {
     try {
@@ -145,7 +145,7 @@ export default function Home() {
 
     if (juegoMatch) {
       // Guardar fracciones para aplicar después del useEffect de juegoSeleccionado
-      fraccionesPendientes.current = fracs;
+      setFraccionesPendientes(fracs);
       setJuegoSeleccionado(juegoMatch);
     } else {
       // No encontró juego — aplicar fracciones directamente
@@ -186,7 +186,7 @@ export default function Home() {
     setResultado(null);
 
     if (juegoMatch) {
-      fraccionesPendientes.current = fracs;
+      setFraccionesPendientes(fracs);
       setJuegoSeleccionado(juegoMatch);
     } else {
       setFraccionesSeleccionadas(fracs);
