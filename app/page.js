@@ -29,6 +29,7 @@ export default function Home() {
   const [mostrarEscaner, setMostrarEscaner] = useState(false);
   const [configLimites, setConfigLimites] = useState({ gratis: 2, basico: 10, pro: 25 });
   const [nombresPlanes, setNombresPlanes] = useState({ gratis: 'Gratis', basico: 'Basico', pro: 'Pro', premium: 'Premium' });
+  const [noticias, setNoticias] = useState([]);
 
   // Cola de boletos escaneados con estado individual
   const [boletosEscaneados, setBoletosEscaneados] = useState([]); // [{...datos, estado:'pendiente'|'guardado'|'seleccionado'}]
@@ -42,13 +43,6 @@ export default function Home() {
   const COLOR_TEXTO_SEC = '#8FB3E0';
   const COLOR_TEXTO_TERC = '#5C7CA3';
 
-  const noticias = [
-    { id: 1, titulo: 'Nuevas loterias agregadas', desc: 'Ahora puedes verificar Colorloto y juegos Astro en tiempo real.', fecha: 'Hoy', icono: '✨' },
-    { id: 2, titulo: 'Escanea tus boletos con IA', desc: 'Detecta varios boletos en una sola foto automaticamente.', fecha: 'Hace 3 dias', icono: '📸' },
-    { id: 3, titulo: 'Notificaciones mejoradas', desc: 'Recibe alertas al instante cuando ganes premios.', fecha: 'Hace 1 semana', icono: '🔔' },
-    { id: 4, titulo: 'Actualizamos nuestra seguridad', desc: 'Encriptacion de extremo a extremo para proteger tus datos.', fecha: 'Hace 2 semanas', icono: '🔐' },
-  ];
-
   useEffect(() => {
     cargarJuegos();
     cargarResultados();
@@ -59,6 +53,7 @@ export default function Home() {
         setNombresPlanes({ gratis: data.nombre_gratis || 'Gratis', basico: data.nombre_basico || 'Basico', pro: data.nombre_pro || 'Pro', premium: data.nombre_premium || 'Premium' });
       }
     }).catch(() => {});
+    fetch('/noticias.json').then(r => r.json()).then(data => setNoticias(Array.isArray(data) ? data : [])).catch(() => setNoticias([]));
   }, []);
 
   async function cargarJuegos() {
@@ -571,9 +566,9 @@ export default function Home() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
               <div style={{ textAlign: 'center' }}>
                 <p style={{ color: COLOR_ACENTO, fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bienvenido a NotiLoto</p>
-                <p style={{ color: '#fff', fontSize: 40, fontWeight: 800, lineHeight: 1.1, marginBottom: 12 }}>Verifica tus loterias<br />y recibe noticias</p>
-                <p style={{ color: COLOR_TEXTO_SEC, fontSize: 15, maxWidth: 600, margin: '0 auto', lineHeight: 1.6 }}>
-                  La plataforma mas confiable para verificar resultados de loterias y chances colombianos.
+                <p style={{ color: '#fff', fontSize: 40, fontWeight: 800, lineHeight: 1.1, marginBottom: 12 }}>Guarda tus números de loterías / chances <br />y recibe notificaciones cuando salgan los resultados</p>
+                <p style={{ color: COLOR_TEXTO_SEC, fontSize: 15, maxWidth: 700, margin: '0 auto', lineHeight: 1.6 }}>
+                  juega, guarda, Notiloto
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -589,16 +584,18 @@ export default function Home() {
               <div>
                 <p style={{ color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 20 }}>📰 Ultimas noticias</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                  {noticias.map(n => (
+                  {noticias.length > 0 ? noticias.map(n => (
                     <div key={n.id} style={{ ...card }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                        <span style={{ fontSize: 28 }}>{n.icono}</span>
-                        <span style={{ fontSize: 11, backgroundColor: COLOR_FONDO, color: COLOR_TEXTO_SEC, padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>{n.fecha}</span>
+                        <span style={{ fontSize: 28 }}>{n.icono || '📰'}</span>
+                        <span style={{ fontSize: 11, backgroundColor: COLOR_FONDO, color: COLOR_TEXTO_SEC, padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>{n.fecha || 'Nueva'}</span>
                       </div>
                       <p style={{ color: '#fff', fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{n.titulo}</p>
-                      <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, lineHeight: 1.5 }}>{n.desc}</p>
+                      <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, lineHeight: 1.5 }}>{n.descripcion}</p>
                     </div>
-                  ))}
+                  )) : (
+                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14 }}>No hay noticias disponibles por el momento.</p>
+                  )}
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>

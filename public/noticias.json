@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1",
+    "titulo": "Nuevas loterías disponibles",
+    "descripcion": "Ahora puedes guardar y recibir alertas de tus números en Chance, Lotería y juegos especiales.",
+    "fecha": "Hoy",
+    "icono": "🎲"
+  },
+  {
+    "id": "2",
+    "titulo": "Notificaciones en tiempo real",
+    "descripcion": "Recibe avisos cuando tus números estén cerca de salir o cuando ya haya resultados disponibles.",
+    "fecha": "Hace 2 días",
+    "icono": "🔔"
+  }
+]

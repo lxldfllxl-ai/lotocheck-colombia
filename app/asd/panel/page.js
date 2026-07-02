@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { LogOut, DollarSign, Ticket, Users, Plus, Copy, Check, X, Edit2, Trash2 } from 'lucide-react';
+import { LogOut, DollarSign, Ticket, Users, Plus, Copy, Check, X, Edit2, Trash2, Newspaper } from 'lucide-react';
 
 export default function AdminPanel() {
   const [cargando, setCargando] = useState(true);
@@ -78,6 +78,13 @@ export default function AdminPanel() {
                 <p style={{ color: '#555', fontSize: 13 }}>Crea y gestiona cuentas admin/scraper.</p>
               </div>
             )}
+            {sesion?.rol === 'admin' && (
+              <div onClick={() => setVista('noticias')} style={card}>
+                <Newspaper size={28} color="#C41230" style={{ marginBottom: 12 }} />
+                <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Noticias</p>
+                <p style={{ color: '#555', fontSize: 13 }}>Agrega, edita o elimina las noticias del inicio.</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -85,6 +92,7 @@ export default function AdminPanel() {
         {vista === 'resultados' && <PanelResultados />}
         {vista === 'juegos' && <PanelJuegos />}
         {vista === 'usuarios' && <PanelUsuarios />}
+        {vista === 'noticias' && <PanelNoticias />}
       </div>
     </div>
   );
@@ -146,6 +154,103 @@ function PanelPrecios() {
       {mensaje && <div style={{ backgroundColor: '#0d1f0d', border: '1px solid #1a3a1a', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}><p style={{ color: '#4ade80', fontSize: 13 }}>{mensaje}</p></div>}
       {error && <div style={{ backgroundColor: '#1E0000', border: '1px solid #3A0000', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}><p style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p></div>}
       <button onClick={guardar} disabled={guardando} style={{ background: '#C41230', border: 'none', borderRadius: 10, padding: '13px 32px', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: guardando ? 0.6 : 1 }}>{guardando ? 'Guardando...' : 'Guardar cambios'}</button>
+    </div>
+  );
+}
+
+// ─── PANEL NOTICIAS ───────────────────────────────────────
+function PanelNoticias() {
+  const [noticias, setNoticias] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
+  const [mensaje, setMensaje] = useState(null);
+  const [editando, setEditando] = useState(null);
+  const [form, setForm] = useState({ titulo: '', descripcion: '', fecha: '', icono: '📰' });
+
+  useEffect(() => { cargar(); }, []);
+
+  async function cargar() {
+    setCargando(true);
+    const res = await fetch('/api/admin/noticias');
+    const data = await res.json();
+    if (data.noticias) setNoticias(data.noticias);
+    setCargando(false);
+  }
+
+  function resetForm() {
+    setForm({ titulo: '', descripcion: '', fecha: '', icono: '📰' });
+    setEditando(null);
+  }
+
+  async function guardar() {
+    setGuardando(true); setError(null); setMensaje(null);
+    if (!form.titulo.trim() || !form.descripcion.trim()) { setError('Título y descripción son obligatorios.'); setGuardando(false); return; }
+
+    const method = editando ? 'PUT' : 'POST';
+    const body = editando ? { id: editando.id, ...form } : form;
+    const res = await fetch('/api/admin/noticias', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) setError(data.error || 'Error al guardar.');
+    else { setMensaje(editando ? 'Noticia actualizada.' : 'Noticia creada.'); await cargar(); resetForm(); }
+    setGuardando(false);
+  }
+
+  async function eliminar(id) {
+    if (!confirm('Seguro que quieres eliminar esta noticia?')) return;
+    const res = await fetch('/api/admin/noticias', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    const data = await res.json();
+    if (!res.ok) setError(data.error || 'Error al eliminar.');
+    else { await cargar(); setMensaje('Noticia eliminada.'); }
+  }
+
+  function iniciarEdicion(noticia) {
+    setEditando(noticia);
+    setForm({ titulo: noticia.titulo || '', descripcion: noticia.descripcion || '', fecha: noticia.fecha || '', icono: noticia.icono || '📰' });
+  }
+
+  const inputStyle = { width: '100%', backgroundColor: '#0A0A0A', border: '1px solid #2A2A2A', borderRadius: 10, padding: '10px 12px', fontSize: 14, color: '#E0E0E0', outline: 'none' };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <p style={{ color: '#fff', fontSize: 18, fontWeight: 700 }}>Noticias del inicio</p>
+        <button onClick={() => { resetForm(); setEditando(null); }} style={{ background: '#C41230', border: 'none', borderRadius: 8, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{editando ? 'Cancelar edición' : 'Nueva noticia'}</button>
+      </div>
+
+      {mensaje && <div style={{ backgroundColor: '#0d1f0d', border: '1px solid #1a3a1a', borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}><p style={{ color: '#4ade80', fontSize: 13 }}>{mensaje}</p></div>}
+      {error && <div style={{ backgroundColor: '#1E0000', border: '1px solid #3A0000', borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}><p style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p></div>}
+
+      <div style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 16, padding: 20, marginBottom: 20 }}>
+        <p style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 16 }}>{editando ? 'Editar noticia' : 'Crear noticia'}</p>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <input type="text" placeholder="Título" value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })} style={inputStyle} />
+          <textarea placeholder="Descripción" value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} style={{ ...inputStyle, minHeight: 90, resize: 'vertical' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+            <input type="text" placeholder="Fecha (ej. Hoy)" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} style={inputStyle} />
+            <input type="text" placeholder="Ícono (ej. 📰)" value={form.icono} onChange={e => setForm({ ...form, icono: e.target.value })} style={inputStyle} />
+          </div>
+          <button onClick={guardar} disabled={guardando} style={{ background: '#C41230', border: 'none', borderRadius: 10, padding: '12px 18px', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: guardando ? 0.6 : 1 }}>{guardando ? 'Guardando...' : editando ? 'Actualizar noticia' : 'Guardar noticia'}</button>
+        </div>
+      </div>
+
+      {cargando ? <p style={{ color: '#555' }}>Cargando...</p> : (
+        <div style={{ display: 'grid', gap: 12 }}>
+          {noticias.map(noticia => (
+            <div key={noticia.id} style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 16, padding: 16, display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ color: '#fff', fontSize: 15, fontWeight: 700 }}>{noticia.titulo}</p>
+                <p style={{ color: '#888', fontSize: 13, marginTop: 6 }}>{noticia.descripcion}</p>
+                <p style={{ color: '#555', fontSize: 12, marginTop: 8 }}>{noticia.fecha || 'Nueva'} · {noticia.icono || '📰'}</p>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => iniciarEdicion(noticia)} style={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, padding: '8px 10px', color: '#fff', cursor: 'pointer' }}><Edit2 size={14} /></button>
+                <button onClick={() => eliminar(noticia.id)} style={{ background: '#2A0000', border: '1px solid #3A0000', borderRadius: 8, padding: '8px 10px', color: '#ff6b6b', cursor: 'pointer' }}><Trash2 size={14} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
