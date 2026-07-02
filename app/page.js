@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Search, Calendar, Ticket, Settings, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, X, Check, Pencil } from 'lucide-react';
+import { Search, Calendar, Ticket, Settings, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, X, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { verificarBoletoContraResultados } from '../lib/verificacion';
 import ModalPremium from './components/ModalPremium';
@@ -235,7 +235,7 @@ export default function Home() {
     });
 
     if (duplicado) {
-      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde Mis Numeros si necesitas actualizarlo.' });
+      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde aqui si necesitas actualizarlo.', mostrarEditar: true, boletoDuplicadoId: duplicado.id });
       return;
     }
 
@@ -283,7 +283,7 @@ export default function Home() {
 
     const duplicado = encontrarBoletoDuplicado({ loteria: juegoSeleccionado.nombre, numero, serie, fechaSorteo });
     if (duplicado) {
-      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde Mis Numeros si necesitas actualizarlo.' });
+      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde aqui si necesitas actualizarlo.', mostrarEditar: true, boletoDuplicadoId: duplicado.id });
       return;
     }
 
@@ -403,7 +403,7 @@ export default function Home() {
 
     const duplicado = encontrarBoletoDuplicado({ loteria: juegoSeleccionado.nombre, numero, serie, fechaSorteo });
     if (duplicado) {
-      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde Mis Numeros si necesitas actualizarlo.' });
+      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde aqui si necesitas actualizarlo.', mostrarEditar: true, boletoDuplicadoId: duplicado.id });
       return;
     }
 
@@ -509,6 +509,11 @@ export default function Home() {
   const porCategoria = juegos.reduce((acc, j) => { if (!acc[j.categoria]) acc[j.categoria] = []; acc[j.categoria].push(j); return acc; }, {});
   const hayEscaneados = boletosEscaneados.length > 0;
   const hayNumero = numero.trim().length > 0;
+
+  function abrirEdicionDesdeResultado() {
+    const boleto = boletos.find(b => b.id === resultado?.boletoDuplicadoId);
+    if (boleto) prepararEdicionBoleto(boleto);
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: COLOR_FONDO, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '10px', boxSizing: 'border-box' }}>
@@ -821,6 +826,11 @@ export default function Home() {
                         <p style={{ fontWeight: 700, fontSize: 18, color: resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : resultado.tipo === 'warning' ? '#FCD34D' : resultado.tipo === 'success' ? '#10B981' : COLOR_TEXTO_SEC }}>{resultado.titulo}</p>
                         {resultado.premio && <p style={{ fontSize: 22, fontWeight: 800, color: resultado.tipo === 'mayor' ? '#10B981' : COLOR_ACENTO, marginTop: 4 }}>{resultado.premio}</p>}
                         {resultado.mensaje && <p style={{ fontSize: 13, color: '#FDE68A', marginTop: 6, fontWeight: 600 }}>{resultado.mensaje}</p>}
+                        {resultado?.mostrarEditar && (
+                          <button onClick={abrirEdicionDesdeResultado} style={{ marginTop: 10, backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '10px 14px', color: '#1A1500', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                            Editar este numero
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -927,10 +937,7 @@ export default function Home() {
                           <div key={b.id} style={{ ...card }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                               <p style={{ fontSize: 12, color: COLOR_TEXTO_SEC }}>{b.loteria}</p>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <button onClick={() => prepararEdicionBoleto(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_ACENTO, padding: 4, display: 'flex', alignItems: 'center', gap: 4 }}><Pencil size={14} /><span style={{ fontSize: 11, fontWeight: 700 }}>Editar</span></button>
-                                <button onClick={() => eliminarBoleto(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_BORDE, padding: 4 }}><Trash2 size={14} /></button>
-                              </div>
+                              <button onClick={() => eliminarBoleto(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_BORDE, padding: 4 }}><Trash2 size={14} /></button>
                             </div>
                             <p style={{ fontSize: 22, fontWeight: 900, color: '#E0F2FE', letterSpacing: 3 }}>{b.numero}{b.serie ? ` – ${b.serie}` : ''}</p>
                             {b.fracciones?.length > 0 && <p style={{ fontSize: 11, color: COLOR_ACENTO, marginTop: 4 }}>Fracciones: {b.fracciones.join(', ')}</p>}
@@ -959,10 +966,7 @@ export default function Home() {
                           <div key={b.id} style={{ ...card, opacity: 0.9 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                               <p style={{ fontSize: 12, color: COLOR_TEXTO_SEC }}>{b.loteria}</p>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <button onClick={() => prepararEdicionBoleto(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_ACENTO, padding: 4, display: 'flex', alignItems: 'center', gap: 4 }}><Pencil size={14} /><span style={{ fontSize: 11, fontWeight: 700 }}>Editar</span></button>
-                                <button onClick={() => eliminarBoleto(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_BORDE, padding: 4 }}><Trash2 size={14} /></button>
-                              </div>
+                              <button onClick={() => eliminarBoleto(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_BORDE, padding: 4 }}><Trash2 size={14} /></button>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <p style={{ fontSize: 22, fontWeight: 900, color: '#E0F2FE', letterSpacing: 3 }}>{b.numero}{b.serie ? ` – ${b.serie}` : ''}</p>
