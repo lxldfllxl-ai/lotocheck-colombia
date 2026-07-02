@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Search, Calendar, Ticket, Settings, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, X, Check } from 'lucide-react';
+import { Search, Calendar, Ticket, Settings, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, X, Check, Pencil } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { verificarBoletoContraResultados } from '../lib/verificacion';
 import ModalPremium from './components/ModalPremium';
@@ -33,6 +33,7 @@ export default function Home() {
   // Cola de boletos escaneados con estado individual
   const [boletosEscaneados, setBoletosEscaneados] = useState([]); // [{...datos, estado:'pendiente'|'guardado'|'seleccionado'}]
   const [indiceSeleccionado, setIndiceSeleccionado] = useState(null);
+  const [boletoEditandoId, setBoletoEditandoId] = useState(null);
 
   const COLOR_FONDO = '#0B1F3A';
   const COLOR_CARD = '#142A4A';
@@ -195,10 +196,72 @@ export default function Home() {
     } : null;
   }
 
-  function encontrarBoletoDuplicado({ loteria, numero: numeroInput, serie: serieInput, fechaSorteo: fechaInput }) {
+  function prepararEdicionBoleto(boleto) {
+    const juegoMatch = juegos.find(j => j.nombre === boleto.loteria);
+    setBoletoEditandoId(boleto.id);
+    setTab('verificar');
+    setJuegoSeleccionado(juegoMatch || juegoSeleccionado);
+    setNumero(boleto.numero || '');
+    setSerie(boleto.serie || '');
+    setFraccionesSeleccionadas(Array.isArray(boleto.fracciones) ? boleto.fracciones : []);
+    setFechaSorteo(boleto.fecha_sorteo || '');
+    setValorApuesta('');
+    setSigno('');
+    setResultado({ tipo: 'warning', titulo: 'Editando boleto guardado', mensaje: 'Puedes modificar los datos y guardar los cambios.' });
+  }
+
+  function cancelarEdicion() {
+    setBoletoEditandoId(null);
+    setResultado(null);
+  }
+
+  async function guardarEdicionBoleto() {
+    if (!usuario) { window.location.href = '/login'; return; }
+    if (!numero || !juegoSeleccionado) return;
+    if (!fechaSorteo) { setResultado({ tipo: 'error', titulo: 'Selecciona la fecha del sorteo', premio: null }); return; }
+
+    const aviso = advertenciaFecha(fechaSorteo);
+    if (aviso) {
+      setResultado({ tipo: 'warning', titulo: aviso.titulo, premio: null, mensaje: aviso.mensaje });
+      return;
+    }
+
+    const duplicado = encontrarBoletoDuplicado({
+      loteria: juegoSeleccionado.nombre,
+      numero,
+      serie,
+      fechaSorteo,
+      excluirId: boletoEditandoId,
+    });
+
+    if (duplicado) {
+      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde Mis Numeros si necesitas actualizarlo.' });
+      return;
+    }
+
+    setGuardando(true);
+    const { data, error } = await supabase.from('boletos').update({
+      loteria: juegoSeleccionado.nombre,
+      numero: numero.padStart(juegoSeleccionado.numero_digits || 4, '0'),
+      serie: serie.toUpperCase(),
+      fracciones: fraccionesSeleccionadas,
+      fecha_sorteo: fechaSorteo,
+    }).eq('id', boletoEditandoId).select().single();
+    setGuardando(false);
+
+    if (!error && data) {
+      setBoletos(prev => prev.map(b => b.id === boletoEditandoId ? { ...b, ...data } : b));
+      setBoletoEditandoId(null);
+      setResultado({ tipo: 'success', titulo: '✓ Cambios guardados', premio: null, mensaje: null });
+      setTab('numeros');
+    }
+  }
+
+  function encontrarBoletoDuplicado({ loteria, numero: numeroInput, serie: serieInput, fechaSorteo: fechaInput, excluirId = null }) {
     const numeroNormalizado = (numeroInput || '').padStart(juegoSeleccionado?.numero_digits || 4, '0');
     const serieNormalizada = (serieInput || '').toUpperCase();
     return boletos.find(b => {
+      if (excluirId && b.id === excluirId) return false;
       const mismoJuego = b.loteria === loteria;
       const mismoNumero = (b.numero || '').toString() === numeroNormalizado;
       const mismaSerie = (b.serie || '').toUpperCase() === serieNormalizada;
@@ -337,6 +400,12 @@ export default function Home() {
 
     if (!usuario) { window.location.href = '/login'; return; }
     if (boletosPendientes().length >= getLimite()) { setMostrarPremium(true); return; }
+
+    const duplicado = encontrarBoletoDuplicado({ loteria: juegoSeleccionado.nombre, numero, serie, fechaSorteo });
+    if (duplicado) {
+      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde Mis Numeros si necesitas actualizarlo.' });
+      return;
+    }
 
     setGuardando(true);
 
@@ -651,10 +720,17 @@ export default function Home() {
                 </div>
 
                 {/* Botones de accion */}
-                <button onClick={hayEscaneados ? verificarYGuardar : soloVerificar} disabled={!hayNumero || verificando || guardando} style={{ width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12, padding: '16px', fontSize: 16, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (!hayNumero || verificando || guardando) ? 0.4 : 1, boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}>
-                  <Search size={20} />
-                  {verificando ? 'Verificando...' : guardando ? 'Guardando...' : 'Verificar / Guardar'}
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button onClick={boletoEditandoId ? guardarEdicionBoleto : (hayEscaneados ? verificarYGuardar : soloVerificar)} disabled={!hayNumero || verificando || guardando} style={{ width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12, padding: '16px', fontSize: 16, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (!hayNumero || verificando || guardando) ? 0.4 : 1, boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}>
+                    <Search size={20} />
+                    {verificando ? 'Verificando...' : guardando ? 'Guardando...' : boletoEditandoId ? 'Guardar cambios' : 'Verificar / Guardar'}
+                  </button>
+                  {boletoEditandoId && (
+                    <button onClick={cancelarEdicion} style={{ width: '100%', backgroundColor: 'transparent', border: `1.5px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px', fontSize: 14, fontWeight: 700, color: COLOR_TEXTO_SEC, cursor: 'pointer' }}>
+                      Cancelar edición
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Columna derecha — boletos escaneados o resultado */}
@@ -851,7 +927,10 @@ export default function Home() {
                           <div key={b.id} style={{ ...card }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                               <p style={{ fontSize: 12, color: COLOR_TEXTO_SEC }}>{b.loteria}</p>
-                              <button onClick={() => eliminarBoleto(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_BORDE, padding: 4 }}><Trash2 size={14} /></button>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <button onClick={() => prepararEdicionBoleto(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_ACENTO, padding: 4, display: 'flex', alignItems: 'center', gap: 4 }}><Pencil size={14} /><span style={{ fontSize: 11, fontWeight: 700 }}>Editar</span></button>
+                                <button onClick={() => eliminarBoleto(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_BORDE, padding: 4 }}><Trash2 size={14} /></button>
+                              </div>
                             </div>
                             <p style={{ fontSize: 22, fontWeight: 900, color: '#E0F2FE', letterSpacing: 3 }}>{b.numero}{b.serie ? ` – ${b.serie}` : ''}</p>
                             {b.fracciones?.length > 0 && <p style={{ fontSize: 11, color: COLOR_ACENTO, marginTop: 4 }}>Fracciones: {b.fracciones.join(', ')}</p>}
@@ -880,7 +959,10 @@ export default function Home() {
                           <div key={b.id} style={{ ...card, opacity: 0.9 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                               <p style={{ fontSize: 12, color: COLOR_TEXTO_SEC }}>{b.loteria}</p>
-                              <button onClick={() => eliminarBoleto(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_BORDE, padding: 4 }}><Trash2 size={14} /></button>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <button onClick={() => prepararEdicionBoleto(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_ACENTO, padding: 4, display: 'flex', alignItems: 'center', gap: 4 }}><Pencil size={14} /><span style={{ fontSize: 11, fontWeight: 700 }}>Editar</span></button>
+                                <button onClick={() => eliminarBoleto(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLOR_BORDE, padding: 4 }}><Trash2 size={14} /></button>
+                              </div>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <p style={{ fontSize: 22, fontWeight: 900, color: '#E0F2FE', letterSpacing: 3 }}>{b.numero}{b.serie ? ` – ${b.serie}` : ''}</p>
