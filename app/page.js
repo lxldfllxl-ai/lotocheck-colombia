@@ -191,8 +191,20 @@ export default function Home() {
     const corte = '2026-06-01';
     return fecha < corte ? {
       titulo: 'Resultados disponibles a partir de Junio 2026',
-      mensaje: 'Aún no tenemos resultados disponibles para fechas anteriores a junio de 2026.'
+      mensaje: ''
     } : null;
+  }
+
+  function encontrarBoletoDuplicado({ loteria, numero: numeroInput, serie: serieInput, fechaSorteo: fechaInput }) {
+    const numeroNormalizado = (numeroInput || '').padStart(juegoSeleccionado?.numero_digits || 4, '0');
+    const serieNormalizada = (serieInput || '').toUpperCase();
+    return boletos.find(b => {
+      const mismoJuego = b.loteria === loteria;
+      const mismoNumero = (b.numero || '').toString() === numeroNormalizado;
+      const mismaSerie = (b.serie || '').toUpperCase() === serieNormalizada;
+      const mismaFecha = b.fecha_sorteo === fechaInput;
+      return mismoJuego && mismoNumero && mismaSerie && mismaFecha;
+    });
   }
 
   async function verificarYGuardar() {
@@ -205,6 +217,12 @@ export default function Home() {
     }
     if (!usuario) { window.location.href = '/login'; return; }
     if (boletosPendientes().length >= getLimite()) { setMostrarPremium(true); return; }
+
+    const duplicado = encontrarBoletoDuplicado({ loteria: juegoSeleccionado.nombre, numero, serie, fechaSorteo });
+    if (duplicado) {
+      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde Mis Numeros si necesitas actualizarlo.' });
+      return;
+    }
 
     setVerificando(true);
 
@@ -265,10 +283,10 @@ export default function Home() {
 
     if (!error && data) {
       setBoletos(prev => [data, ...prev]);
-      // Marcar este boleto como guardado en la lista de escaneados
       if (indiceSeleccionado !== null) {
         setBoletosEscaneados(prev => prev.map((b, i) => i === indiceSeleccionado ? { ...b, estado: 'guardado', resultadoVerificacion: { tipo: tipoDisplay, titulo: tituloDisplay, premio: premioFinal } } : b));
       }
+      setResultado({ tipo: 'success', titulo: '✓ Guardado automaticamente', premio: null, mensaje: null });
     }
   }
 
@@ -343,6 +361,7 @@ export default function Home() {
       if (indiceSeleccionado !== null) {
         setBoletosEscaneados(prev => prev.map((b, i) => i === indiceSeleccionado ? { ...b, estado: 'guardado', resultadoVerificacion: { tipo: tipoDisplay, titulo: tituloDisplay, premio: premioFinal } } : b));
       }
+      setResultado({ tipo: 'success', titulo: '✓ Guardado automaticamente', premio: null, mensaje: null });
     }
   }
 
@@ -375,7 +394,10 @@ export default function Home() {
     }).select().single();
 
     setGuardando(false);
-    if (!error && data) setBoletos(prev => [data, ...prev]);
+    if (!error && data) {
+      setBoletos(prev => [data, ...prev]);
+      setResultado({ tipo: 'success', titulo: '✓ Guardado automaticamente', premio: null, mensaje: null });
+    }
   }
 
   function getLimite() {
@@ -715,12 +737,12 @@ export default function Home() {
                 {/* Resultado de verificacion */}
                 {resultado && (
                   <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : resultado.tipo === 'warning' ? '#F59E0B' : COLOR_BORDE}` }}>
-                    <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16, backgroundColor: resultado.tipo === 'mayor' ? '#0a3a2a' : resultado.tipo === 'seco' ? '#3a2f0a' : resultado.tipo === 'warning' ? '#3a240a' : resultado.tipo === 'nada' ? '#1a1a1a' : COLOR_FONDO }}>
-                      <div style={{ width: 52, height: 52, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, backgroundColor: resultado.tipo === 'mayor' ? '#0a5a4a' : resultado.tipo === 'seco' ? '#5a4a0a' : resultado.tipo === 'warning' ? '#5a3c0a' : COLOR_CARD, flexShrink: 0 }}>
-                        {resultado.tipo === 'mayor' ? '🏆' : resultado.tipo === 'seco' ? '🪙' : resultado.tipo === 'pendiente' ? '⏳' : resultado.tipo === 'error' ? '⚠️' : resultado.tipo === 'warning' ? '🗓️' : '❌'}
+                    <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16, backgroundColor: resultado.tipo === 'mayor' ? '#0a3a2a' : resultado.tipo === 'seco' ? '#3a2f0a' : resultado.tipo === 'warning' ? '#3a240a' : resultado.tipo === 'success' ? '#0a3a2a' : resultado.tipo === 'nada' ? '#1a1a1a' : COLOR_FONDO }}>
+                      <div style={{ width: 52, height: 52, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, backgroundColor: resultado.tipo === 'mayor' ? '#0a5a4a' : resultado.tipo === 'seco' ? '#5a4a0a' : resultado.tipo === 'warning' ? '#5a3c0a' : resultado.tipo === 'success' ? '#0a5a4a' : COLOR_CARD, flexShrink: 0 }}>
+                        {resultado.tipo === 'mayor' ? '🏆' : resultado.tipo === 'seco' ? '🪙' : resultado.tipo === 'pendiente' ? '⏳' : resultado.tipo === 'error' ? '⚠️' : resultado.tipo === 'warning' ? '🗓️' : resultado.tipo === 'success' ? '✅' : '❌'}
                       </div>
                       <div>
-                        <p style={{ fontWeight: 700, fontSize: 18, color: resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : resultado.tipo === 'warning' ? '#FCD34D' : COLOR_TEXTO_SEC }}>{resultado.titulo}</p>
+                        <p style={{ fontWeight: 700, fontSize: 18, color: resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : resultado.tipo === 'warning' ? '#FCD34D' : resultado.tipo === 'success' ? '#10B981' : COLOR_TEXTO_SEC }}>{resultado.titulo}</p>
                         {resultado.premio && <p style={{ fontSize: 22, fontWeight: 800, color: resultado.tipo === 'mayor' ? '#10B981' : COLOR_ACENTO, marginTop: 4 }}>{resultado.premio}</p>}
                         {resultado.mensaje && <p style={{ fontSize: 13, color: '#FDE68A', marginTop: 6, fontWeight: 600 }}>{resultado.mensaje}</p>}
                       </div>
