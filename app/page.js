@@ -186,9 +186,23 @@ export default function Home() {
     setIndiceSeleccionado(null);
   }
 
+  function advertenciaFecha(fecha) {
+    if (!fecha) return null;
+    const corte = '2026-06-01';
+    return fecha < corte ? {
+      titulo: 'Fecha anterior al inicio de tu historial',
+      mensaje: 'Aún no tienes resultados disponibles para fechas anteriores a junio de 2026. No se guardará automáticamente este boleto.'
+    } : null;
+  }
+
   async function verificarYGuardar() {
     if (!numero || !juegoSeleccionado) return;
     if (!fechaSorteo) { setResultado({ tipo: 'error', titulo: 'Selecciona la fecha del sorteo', premio: null }); return; }
+    const aviso = advertenciaFecha(fechaSorteo);
+    if (aviso) {
+      setResultado({ tipo: 'warning', titulo: aviso.titulo, premio: null, mensaje: aviso.mensaje });
+      return;
+    }
     if (!usuario) { window.location.href = '/login'; return; }
     if (boletosPendientes().length >= getLimite()) { setMostrarPremium(true); return; }
 
@@ -262,6 +276,11 @@ export default function Home() {
   async function soloVerificar() {
     if (!numero || !juegoSeleccionado) return;
     if (!fechaSorteo) { setResultado({ tipo: 'error', titulo: 'Selecciona la fecha del sorteo', premio: null }); return; }
+    const aviso = advertenciaFecha(fechaSorteo);
+    if (aviso) {
+      setResultado({ tipo: 'warning', titulo: aviso.titulo, premio: null, mensaje: aviso.mensaje });
+      return;
+    }
 
     setVerificando(true);
 
@@ -293,6 +312,12 @@ export default function Home() {
 
   async function guardarResultadoManual() {
     if (!usuario) { window.location.href = '/login'; return; }
+    if (!fechaSorteo) { setResultado({ tipo: 'error', titulo: 'Selecciona la fecha del sorteo', premio: null }); return; }
+    const aviso = advertenciaFecha(fechaSorteo);
+    if (aviso) {
+      setResultado({ tipo: 'warning', titulo: aviso.titulo, premio: null, mensaje: aviso.mensaje });
+      return;
+    }
     if (boletosPendientes().length >= getLimite()) { setMostrarPremium(true); return; }
 
     setGuardando(true);
@@ -673,14 +698,15 @@ export default function Home() {
 
                 {/* Resultado de verificacion */}
                 {resultado && (
-                  <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : COLOR_BORDE}` }}>
-                    <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16, backgroundColor: resultado.tipo === 'mayor' ? '#0a3a2a' : resultado.tipo === 'seco' ? '#3a2f0a' : resultado.tipo === 'nada' ? '#1a1a1a' : COLOR_FONDO }}>
-                      <div style={{ width: 52, height: 52, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, backgroundColor: resultado.tipo === 'mayor' ? '#0a5a4a' : resultado.tipo === 'seco' ? '#5a4a0a' : COLOR_CARD, flexShrink: 0 }}>
-                        {resultado.tipo === 'mayor' ? '🏆' : resultado.tipo === 'seco' ? '🪙' : resultado.tipo === 'pendiente' ? '⏳' : resultado.tipo === 'error' ? '⚠️' : '❌'}
+                  <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : resultado.tipo === 'warning' ? '#F59E0B' : COLOR_BORDE}` }}>
+                    <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16, backgroundColor: resultado.tipo === 'mayor' ? '#0a3a2a' : resultado.tipo === 'seco' ? '#3a2f0a' : resultado.tipo === 'warning' ? '#3a240a' : resultado.tipo === 'nada' ? '#1a1a1a' : COLOR_FONDO }}>
+                      <div style={{ width: 52, height: 52, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, backgroundColor: resultado.tipo === 'mayor' ? '#0a5a4a' : resultado.tipo === 'seco' ? '#5a4a0a' : resultado.tipo === 'warning' ? '#5a3c0a' : COLOR_CARD, flexShrink: 0 }}>
+                        {resultado.tipo === 'mayor' ? '🏆' : resultado.tipo === 'seco' ? '🪙' : resultado.tipo === 'pendiente' ? '⏳' : resultado.tipo === 'error' ? '⚠️' : resultado.tipo === 'warning' ? '🗓️' : '❌'}
                       </div>
                       <div>
-                        <p style={{ fontWeight: 700, fontSize: 18, color: resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : COLOR_TEXTO_SEC }}>{resultado.titulo}</p>
+                        <p style={{ fontWeight: 700, fontSize: 18, color: resultado.tipo === 'mayor' ? '#10B981' : resultado.tipo === 'seco' ? COLOR_ACENTO : resultado.tipo === 'warning' ? '#FCD34D' : COLOR_TEXTO_SEC }}>{resultado.titulo}</p>
                         {resultado.premio && <p style={{ fontSize: 22, fontWeight: 800, color: resultado.tipo === 'mayor' ? '#10B981' : COLOR_ACENTO, marginTop: 4 }}>{resultado.premio}</p>}
+                        {resultado.mensaje && <p style={{ fontSize: 13, color: '#FDE68A', marginTop: 6, fontWeight: 600 }}>{resultado.mensaje}</p>}
                       </div>
                     </div>
 
@@ -698,7 +724,7 @@ export default function Home() {
                             <span style={{ color: '#E0F2FE', fontWeight: 600 }}>{val}</span>
                           </div>
                         ))}
-                        {hayEscaneados && (
+                        {hayEscaneados && resultado.tipo !== 'warning' && (
                           <p style={{ fontSize: 12, color: '#10B981', textAlign: 'center', marginTop: 4 }}>✓ Guardado automaticamente</p>
                         )}
                       </div>
