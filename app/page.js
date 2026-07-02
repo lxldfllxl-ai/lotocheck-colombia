@@ -54,7 +54,7 @@ export default function Home() {
         setNombresPlanes({ gratis: data.nombre_gratis || 'Gratis', basico: data.nombre_basico || 'Basico', pro: data.nombre_pro || 'Pro', premium: data.nombre_premium || 'Premium' });
       }
     }).catch(() => {});
-    fetch('/api/admin/noticias').then(r => r.json()).then(data => {
+    fetch('/api/noticias').then(r => r.json()).then(data => {
       if (data.noticias) setNoticias(data.noticias);
     }).catch(() => setNoticias([])).finally(() => setCargandoNoticias(false));
   }, []);
