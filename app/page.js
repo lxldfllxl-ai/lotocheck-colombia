@@ -30,6 +30,7 @@ export default function Home() {
   const [configLimites, setConfigLimites] = useState({ gratis: 2, basico: 10, pro: 25 });
   const [nombresPlanes, setNombresPlanes] = useState({ gratis: 'Gratis', basico: 'Basico', pro: 'Pro', premium: 'Premium' });
   const [noticias, setNoticias] = useState([]);
+  const [cargandoNoticias, setCargandoNoticias] = useState(true);
 
   // Cola de boletos escaneados con estado individual
   const [boletosEscaneados, setBoletosEscaneados] = useState([]); // [{...datos, estado:'pendiente'|'guardado'|'seleccionado'}]
@@ -53,7 +54,9 @@ export default function Home() {
         setNombresPlanes({ gratis: data.nombre_gratis || 'Gratis', basico: data.nombre_basico || 'Basico', pro: data.nombre_pro || 'Pro', premium: data.nombre_premium || 'Premium' });
       }
     }).catch(() => {});
-    fetch('/noticias.json').then(r => r.json()).then(data => setNoticias(Array.isArray(data) ? data : [])).catch(() => setNoticias([]));
+    fetch('/api/admin/noticias').then(r => r.json()).then(data => {
+      if (data.noticias) setNoticias(data.noticias);
+    }).catch(() => setNoticias([])).finally(() => setCargandoNoticias(false));
   }, []);
 
   async function cargarJuegos() {
@@ -565,9 +568,8 @@ export default function Home() {
           {tab === 'inicio' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
               <div style={{ textAlign: 'center' }}>
-                <p style={{ color: COLOR_ACENTO, fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bienvenido a NotiLoto</p>
-                <p style={{ color: '#fff', fontSize: 40, fontWeight: 800, lineHeight: 1.1, marginBottom: 12 }}>Guarda tus números de loterías / chances <br />y recibe notificaciones cuando salgan los resultados</p>
-                <p style={{ color: COLOR_TEXTO_SEC, fontSize: 15, maxWidth: 700, margin: '0 auto', lineHeight: 1.6 }}>
+                <p style={{ color: '#fff', fontSize: '32px', fontWeight: 800, lineHeight: 1.1, marginBottom: 12 }}>Guarda tus números de loterías / chances <br />y recibe notificaciones cuando salgan los resultados</p>
+                <p style={{ color: COLOR_TEXTO_SEC, fontSize: '19.5px', maxWidth: 700, margin: '0 auto', lineHeight: 1.6 }}>
                   juega, guarda, Notiloto
                 </p>
               </div>
@@ -584,7 +586,9 @@ export default function Home() {
               <div>
                 <p style={{ color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 20 }}>📰 Ultimas noticias</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                  {noticias.length > 0 ? noticias.map(n => (
+                  {cargandoNoticias ? (
+                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14 }}>Cargando noticias...</p>
+                  ) : noticias.length > 0 ? noticias.map(n => (
                     <div key={n.id} style={{ ...card }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                         <span style={{ fontSize: 28 }}>{n.icono || '📰'}</span>
