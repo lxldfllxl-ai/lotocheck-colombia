@@ -190,8 +190,8 @@ export default function Home() {
     if (!fecha) return null;
     const corte = '2026-06-01';
     return fecha < corte ? {
-      titulo: 'Fecha anterior al inicio de tu historial',
-      mensaje: 'Aún no tienes resultados disponibles para fechas anteriores a junio de 2026. No se guardará automáticamente este boleto.'
+      titulo: 'Resultados disponibles a partir de Junio 2026',
+      mensaje: 'Aún no tenemos resultados disponibles para fechas anteriores a junio de 2026.'
     } : null;
   }
 
@@ -272,7 +272,6 @@ export default function Home() {
     }
   }
 
-  // Verificar solo (sin guardar) — para flujo manual sin escaner
   async function soloVerificar() {
     if (!numero || !juegoSeleccionado) return;
     if (!fechaSorteo) { setResultado({ tipo: 'error', titulo: 'Selecciona la fecha del sorteo', premio: null }); return; }
@@ -294,19 +293,56 @@ export default function Home() {
 
     setVerificando(false);
 
-    if (verificacion.resultado === 'pendiente') {
+    // Determinar tipo de resultado para mostrar
+    let tipoDisplay = 'pendiente';
+    let tituloDisplay = 'Pendiente de sorteo';
+    if (verificacion.resultado !== 'pendiente') {
+      const detalle = verificacion.detalle;
+      if (verificacion.resultado === 'ganador') {
+        tipoDisplay = detalle.tipo?.startsWith('seco') ? 'seco' : 'mayor';
+        tituloDisplay = detalle.tipo === 'mayor' ? '¡Premio mayor!' :
+                        detalle.tipo === 'mayor_sin_serie' ? '¡Premio mayor! (sin serie)' :
+                        detalle.tipo === 'seco_3' ? '¡Seco! Ultimas 3 cifras' :
+                        detalle.tipo === 'seco_2' ? '¡Seco! Ultimas 2 cifras' :
+                        detalle.tipo === 'seco_1' ? '¡Seco! Ultima cifra' : '¡Numero ganador!';
+      } else {
+        tipoDisplay = 'nada';
+        tituloDisplay = 'Sin premio esta vez';
+      }
+    } else {
       const motivo = verificacion.detalle?.motivo;
-      setResultado({ tipo: 'pendiente', titulo: motivo === 'sorteo_futuro' ? 'Sorteo pendiente de realizarse' : motivo === 'sin_resultado_aun' ? 'Resultado aun no disponible' : 'Pendiente', premio: null });
-      return;
+      tituloDisplay = motivo === 'sorteo_futuro' ? 'Sorteo pendiente de realizarse' :
+                      motivo === 'sin_resultado_aun' ? 'Resultado aun no disponible' : 'Pendiente de sorteo';
     }
 
-    const detalle = verificacion.detalle;
-    if (verificacion.resultado === 'ganador') {
-      const esSeco = detalle.tipo?.startsWith('seco');
-      const titulo = detalle.tipo === 'mayor' ? '¡Premio mayor!' : detalle.tipo === 'mayor_sin_serie' ? '¡Premio mayor! (sin serie)' : detalle.tipo === 'seco_3' ? '¡Seco! Ultimas 3 cifras' : detalle.tipo === 'seco_2' ? '¡Seco! Ultimas 2 cifras' : detalle.tipo === 'seco_1' ? '¡Seco! Ultima cifra' : '¡Numero ganador!';
-      setResultado({ tipo: esSeco ? 'seco' : 'mayor', titulo, premio: verificacion.premio, sorteo: detalle.sorteo, esHistorico: detalle.esHistorico });
-    } else {
-      setResultado({ tipo: 'nada', titulo: 'Sin premio esta vez', premio: null, sorteo: detalle.sorteo, esHistorico: detalle.esHistorico });
+    setResultado({ tipo: tipoDisplay, titulo: tituloDisplay, premio: verificacion.premio, sorteo: verificacion.detalle?.sorteo, esHistorico: verificacion.detalle?.esHistorico, mensaje: null });
+
+    if (!usuario) { window.location.href = '/login'; return; }
+    if (boletosPendientes().length >= getLimite()) { setMostrarPremium(true); return; }
+
+    setGuardando(true);
+
+    const resultadoFinal = verificacion.resultado;
+    const premioFinal = verificacion.premio;
+
+    const { data, error } = await supabase.from('boletos').insert({
+      user_id: usuario.id,
+      loteria: juegoSeleccionado.nombre,
+      numero: numero.padStart(juegoSeleccionado.numero_digits || 4, '0'),
+      serie: serie.toUpperCase(),
+      fracciones: fraccionesSeleccionadas,
+      fecha_sorteo: fechaSorteo,
+      resultado: resultadoFinal,
+      premio: premioFinal,
+    }).select().single();
+
+    setGuardando(false);
+
+    if (!error && data) {
+      setBoletos(prev => [data, ...prev]);
+      if (indiceSeleccionado !== null) {
+        setBoletosEscaneados(prev => prev.map((b, i) => i === indiceSeleccionado ? { ...b, estado: 'guardado', resultadoVerificacion: { tipo: tipoDisplay, titulo: tituloDisplay, premio: premioFinal } } : b));
+      }
     }
   }
 
@@ -593,30 +629,10 @@ export default function Home() {
                 </div>
 
                 {/* Botones de accion */}
-                {hayEscaneados ? (
-                  // Flujo escaner: un solo boton que verifica y guarda
-                  <button onClick={verificarYGuardar} disabled={!hayNumero || verificando || guardando} style={{ width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12, padding: '16px', fontSize: 16, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (!hayNumero || verificando || guardando) ? 0.4 : 1, boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}>
-                    <Search size={20} />
-                    {verificando ? 'Verificando...' : guardando ? 'Guardando...' : 'Verificar / Guardar'}
-                  </button>
-                ) : (
-                  // Flujo manual: verificar primero, luego guardar
-                  <>
-                    <button onClick={soloVerificar} disabled={!hayNumero || verificando} style={{ width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12, padding: '16px', fontSize: 16, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (!hayNumero || verificando) ? 0.4 : 1, boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}>
-                      <Search size={20} /> {verificando ? 'Verificando...' : 'Verificar / Guardar'}
-                    </button>
-                    {resultado && resultado.tipo !== 'error' && usuario && (
-                      <button onClick={guardarResultadoManual} disabled={guardando} style={{ width: '100%', backgroundColor: 'transparent', border: `1.5px solid ${COLOR_ACENTO}`, borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, color: COLOR_ACENTO, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: guardando ? 0.6 : 1 }}>
-                        <Plus size={16} /> {guardando ? 'Guardando...' : 'Guardar este boleto'}
-                      </button>
-                    )}
-                    {resultado && resultado.tipo !== 'error' && !usuario && (
-                      <button onClick={() => window.location.href = '/login'} style={{ width: '100%', backgroundColor: 'transparent', border: `1.5px solid ${COLOR_ACENTO}`, borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 700, color: COLOR_ACENTO, cursor: 'pointer' }}>
-                        Inicia sesion para guardar
-                      </button>
-                    )}
-                  </>
-                )}
+                <button onClick={hayEscaneados ? verificarYGuardar : soloVerificar} disabled={!hayNumero || verificando || guardando} style={{ width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12, padding: '16px', fontSize: 16, fontWeight: 700, color: '#1A1500', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (!hayNumero || verificando || guardando) ? 0.4 : 1, boxShadow: '0 4px 24px rgba(255,215,0,0.25)' }}>
+                  <Search size={20} />
+                  {verificando ? 'Verificando...' : guardando ? 'Guardando...' : 'Verificar / Guardar'}
+                </button>
               </div>
 
               {/* Columna derecha — boletos escaneados o resultado */}
