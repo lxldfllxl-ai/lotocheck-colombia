@@ -511,9 +511,11 @@ function PanelResultados() {
       const rawData = window.atob(base64);
       const applicationServerKey = new Uint8Array(rawData.length);
       for (let i = 0; i < rawData.length; ++i) applicationServerKey[i] = rawData.charCodeAt(i);
+      console.log('Admin push test applicationServerKey length:', applicationServerKey.length);
 
       const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      const activeRegistration = registration.active ? registration : await navigator.serviceWorker.ready;
+      await registration.update();
+      const activeRegistration = await navigator.serviceWorker.ready;
       let subscription = await activeRegistration.pushManager.getSubscription();
       if (!subscription) {
         const permiso = await Notification.requestPermission();

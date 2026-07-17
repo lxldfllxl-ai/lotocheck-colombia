@@ -579,15 +579,17 @@ export default function Home() {
         addNotificacion({ tipo: 'error', titulo: 'Clave VAPID inválida', mensaje: 'La clave VAPID configurada no es válida.' });
         return null;
       }
-      const registration = await getActiveServiceWorkerRegistration();
-      console.log('Service worker registrado y activo con scope:', registration.scope);
-      const activeRegistration = registration.active ? registration : await navigator.serviceWorker.ready;
+      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      await registration.update();
+      console.log('Service worker registrado y actualizado con scope:', registration.scope);
+      const activeRegistration = await navigator.serviceWorker.ready;
       console.log('Service worker listo:', activeRegistration.scope, 'active=', !!activeRegistration.active);
       let subscription = await activeRegistration.pushManager.getSubscription();
       if (!subscription) {
         let applicationServerKey;
         try {
           applicationServerKey = urlBase64ToUint8Array(vapidKey);
+          console.log('ApplicationServerKey raw length:', applicationServerKey.length, applicationServerKey.slice(0, 5));
         } catch (subErr) {
           console.error('Error decodificando VAPID key:', subErr, vapidKey);
           addNotificacion({ tipo: 'error', titulo: 'Clave VAPID inválida', mensaje: 'No se pudo decodificar la clave VAPID.' });
