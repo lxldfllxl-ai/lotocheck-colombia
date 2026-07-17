@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { verificarTokenAdmin } from '../../../../lib/auth';
-import { sendEmailNotification } from '../../../../lib/notifications';
+import { verificarTokenAdmin } from '../../../../../lib/auth';
+import { sendEmailNotification } from '../../../../../lib/notifications';
 
 export async function POST(request) {
   try {
