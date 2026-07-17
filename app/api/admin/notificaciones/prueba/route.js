@@ -38,6 +38,18 @@ export async function POST(request) {
     }
 
     if (tipo === 'push') {
+      // Si la petición incluye una suscripción en el body, la usamos para enviar push directamente
+      const subscription = body.subscription || null;
+      if (subscription) {
+        try {
+          const sent = await sendPushNotification(subscription, { title: 'Prueba NotiLoto', body: 'Esta es una notificación push de prueba.' });
+          return NextResponse.json({ ok: !!sent, enviados: sent ? 1 : 0 });
+        } catch (e) {
+          console.error('Error enviando push a suscripción proporcionada:', e);
+          return NextResponse.json({ error: 'Error enviando push a la suscripción proporcionada.' }, { status: 500 });
+        }
+      }
+
       if (!supabaseAdmin) return NextResponse.json({ error: 'Supabase admin no configurado' }, { status: 500 });
       // Enviar push a todos los perfiles que tengan push_subscription
       const { data: usuarios, error: errUsuarios } = await supabaseAdmin.from('profiles').select('id, push_subscription').not('push_subscription', 'is', null);

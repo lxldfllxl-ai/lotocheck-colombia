@@ -492,6 +492,47 @@ function PanelResultados() {
     }
   }
 
+  async function enviarPruebaPushLocal() {
+    setTestStatus({ tipo: 'info', texto: 'Registrando service worker y obteniendo suscripción...' });
+    try {
+      if (!('serviceWorker' in navigator)) {
+        setTestStatus({ tipo: 'error', texto: 'Service Worker no soportado en este navegador.' });
+        return;
+      }
+      const resKey = await fetch('/api/notificaciones');
+      const keyData = await resKey.json();
+      const vapidKey = keyData.vapidPublicKey;
+      const padding = '='.repeat((4 - (vapidKey.length % 4)) % 4);
+      const base64 = (vapidKey + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const applicationServerKey = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) applicationServerKey[i] = rawData.charCodeAt(i);
+
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        const permiso = await Notification.requestPermission();
+        if (permiso !== 'granted') {
+          setTestStatus({ tipo: 'error', texto: 'Permiso de notificaciones denegado.' });
+          return;
+        }
+        subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+      }
+
+      const res = await fetch('/api/admin/notificaciones/prueba', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: 'push', subscription }),
+      });
+      const data = await res.json();
+      if (!res.ok) setTestStatus({ tipo: 'error', texto: data.error || 'Error al enviar push de prueba.' });
+      else setTestStatus({ tipo: 'ok', texto: `Push enviado (enviados=${data.enviados || 0}). Revisa tu dispositivo.` });
+    } catch (err) {
+      console.error('Error prueba push local:', err);
+      setTestStatus({ tipo: 'error', texto: err?.message || 'Error al enviar push de prueba.' });
+    }
+  }
+
   const porCategoria = juegos.reduce((acc, j) => {
     if (!acc[j.categoria]) acc[j.categoria] = [];
     acc[j.categoria].push(j);
@@ -512,7 +553,10 @@ function PanelResultados() {
           <label style={{ display: 'block', color: '#AAA', fontSize: 12, marginBottom: 6 }}>Correo de prueba</label>
           <input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="tu@correo.com" style={{ width: '100%', backgroundColor: '#0A0A0A', border: '1px solid #2A2A2A', borderRadius: 10, padding: '10px 12px', color: '#E0E0E0' }} />
         </div>
-        <button onClick={enviarPruebaNotificacion} style={{ background: '#2563EB', border: 'none', borderRadius: 10, padding: '12px 18px', color: '#fff', cursor: 'pointer' }}>Enviar prueba</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={enviarPruebaNotificacion} style={{ background: '#2563EB', border: 'none', borderRadius: 10, padding: '12px 18px', color: '#fff', cursor: 'pointer' }}>Enviar prueba (email)</button>
+          <button onClick={enviarPruebaPushLocal} style={{ background: '#10B981', border: 'none', borderRadius: 10, padding: '12px 18px', color: '#04260f', cursor: 'pointer' }}>Enviar prueba (push a este navegador)</button>
+        </div>
       </div>
       {testStatus && (
         <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: testStatus.tipo === 'ok' ? '#0B4228' : testStatus.tipo === 'error' ? '#3F0F0F' : '#1D1F28', color: testStatus.tipo === 'ok' ? '#86EFAC' : '#FCA5A5', marginBottom: 24 }}>
