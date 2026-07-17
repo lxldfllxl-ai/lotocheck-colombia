@@ -543,6 +543,17 @@ export default function Home() {
     return outputArray;
   }
 
+  async function getActiveServiceWorkerRegistration() {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    if (registration.active) {
+      console.log('Service worker activo al registrar:', registration.scope);
+      return registration;
+    }
+    const readyRegistration = await navigator.serviceWorker.ready;
+    console.log('Service worker listo:', readyRegistration.scope);
+    return readyRegistration;
+  }
+
   function isValidVapidKey(key) {
     return typeof key === 'string' && /^[A-Za-z0-9_-]+$/.test(key);
   }
@@ -568,9 +579,11 @@ export default function Home() {
         addNotificacion({ tipo: 'error', titulo: 'Clave VAPID inválida', mensaje: 'La clave VAPID configurada no es válida.' });
         return null;
       }
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('Service worker registrado con scope:', registration.scope);
-      let subscription = await registration.pushManager.getSubscription();
+      const registration = await getActiveServiceWorkerRegistration();
+      console.log('Service worker registrado y activo con scope:', registration.scope);
+      const activeRegistration = registration.active ? registration : await navigator.serviceWorker.ready;
+      console.log('Service worker listo:', activeRegistration.scope, 'active=', !!activeRegistration.active);
+      let subscription = await activeRegistration.pushManager.getSubscription();
       if (!subscription) {
         let applicationServerKey;
         try {
@@ -581,7 +594,7 @@ export default function Home() {
           return null;
         }
         try {
-          subscription = await registration.pushManager.subscribe({
+          subscription = await activeRegistration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey,
           });
@@ -601,7 +614,7 @@ export default function Home() {
 
   async function unsubscribePush() {
     try {
-      const registration = await navigator.serviceWorker.getRegistration();
+      const registration = await getActiveServiceWorkerRegistration();
       if (!registration) return false;
       const subscription = await registration.pushManager.getSubscription();
       if (subscription) await subscription.unsubscribe();
@@ -661,6 +674,9 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: COLOR_FONDO, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '10px', boxSizing: 'border-box' }}>
+      <button onClick={() => setMostrarNotificacionesPanel((prev) => !prev)} style={{ position: 'fixed', top: 18, right: 18, zIndex: 1250, width: 44, height: 44, borderRadius: '50%', border: `1px solid ${COLOR_BORDE}`, backgroundColor: COLOR_CARD, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 24px rgba(0,0,0,0.22)' }} aria-label="Abrir notificaciones">
+        <Bell size={20} />
+      </button>
 
       {(notificacionesUI.length > 0 || mostrarNotificacionesPanel) && (
         <div style={{ position: 'fixed', top: 18, right: 18, zIndex: 1200, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 340 }}>

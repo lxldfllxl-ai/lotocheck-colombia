@@ -513,14 +513,15 @@ function PanelResultados() {
       for (let i = 0; i < rawData.length; ++i) applicationServerKey[i] = rawData.charCodeAt(i);
 
       const registration = await navigator.serviceWorker.register('/sw.js');
-      let subscription = await registration.pushManager.getSubscription();
+      const activeRegistration = registration.active ? registration : await navigator.serviceWorker.ready;
+      let subscription = await activeRegistration.pushManager.getSubscription();
       if (!subscription) {
         const permiso = await Notification.requestPermission();
         if (permiso !== 'granted') {
           setTestStatus({ tipo: 'error', texto: 'Permiso de notificaciones denegado.' });
           return;
         }
-        subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+        subscription = await activeRegistration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
       }
 
       const res = await fetch('/api/admin/notificaciones/prueba', {
