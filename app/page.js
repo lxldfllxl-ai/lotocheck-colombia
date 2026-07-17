@@ -544,15 +544,21 @@ export default function Home() {
       const registration = await navigator.serviceWorker.register('/sw.js');
       let subscription = await registration.pushManager.getSubscription();
       if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-        });
+        try {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+          });
+        } catch (subErr) {
+          console.error('Error during pushManager.subscribe:', subErr);
+          addNotificacion({ tipo: 'error', titulo: 'Error al suscribirse', mensaje: subErr?.message || String(subErr) });
+          return null;
+        }
       }
       return subscription.toJSON ? subscription.toJSON() : subscription;
     } catch (error) {
       console.error('Error subscripcion push:', error);
-      addNotificacion({ tipo: 'error', titulo: 'Error push', mensaje: 'No se pudo activar las notificaciones push.' });
+      addNotificacion({ tipo: 'error', titulo: 'Error push', mensaje: error?.message || 'No se pudo activar las notificaciones push.' });
       return null;
     }
   }
