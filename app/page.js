@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Search, Calendar, Ticket, Settings, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, X, Check } from 'lucide-react';
+import { Search, Calendar, Ticket, Settings, Bell, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, X, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { verificarBoletoContraResultados } from '../lib/verificacion';
 import ModalPremium from './components/ModalPremium';
@@ -34,6 +34,7 @@ export default function Home() {
   const [notificacionesUI, setNotificacionesUI] = useState([]);
   const [vapidPublicKey, setVapidPublicKey] = useState('');
   const [pushReady, setPushReady] = useState(false);
+  const [mostrarNotificacionesPanel, setMostrarNotificacionesPanel] = useState(false);
 
   // Cola de boletos escaneados con estado individual
   const [boletosEscaneados, setBoletosEscaneados] = useState([]); // [{...datos, estado:'pendiente'|'guardado'|'seleccionado'}]
@@ -619,19 +620,35 @@ export default function Home() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: COLOR_FONDO, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '10px', boxSizing: 'border-box' }}>
 
-      {notificacionesUI.length > 0 && (
+      {(notificacionesUI.length > 0 || mostrarNotificacionesPanel) && (
         <div style={{ position: 'fixed', top: 18, right: 18, zIndex: 1200, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 340 }}>
-          {notificacionesUI.map((item) => (
-            <div key={item.id} style={{ backgroundColor: '#112438', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 12px 30px rgba(0,0,0,0.35)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>{item.titulo}</p>
-                  {item.mensaje && <p style={{ margin: '8px 0 0', fontSize: 12, color: COLOR_TEXTO_SEC, lineHeight: 1.5 }}>{item.mensaje}</p>}
+          {notificacionesUI.length > 0 ? (
+            notificacionesUI.map((item) => (
+              <div key={item.id} style={{ backgroundColor: '#112438', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 12px 30px rgba(0,0,0,0.35)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>{item.titulo}</p>
+                    {item.mensaje && <p style={{ margin: '8px 0 0', fontSize: 12, color: COLOR_TEXTO_SEC, lineHeight: 1.5 }}>{item.mensaje}</p>}
+                  </div>
+                  <button onClick={() => dismissNotificacion(item.id)} style={{ background: 'transparent', border: 'none', color: COLOR_TEXTO_SEC, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>×</button>
                 </div>
-                <button onClick={() => dismissNotificacion(item.id)} style={{ background: 'transparent', border: 'none', color: COLOR_TEXTO_SEC, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>×</button>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            mostrarNotificacionesPanel && (
+              <div style={{ backgroundColor: '#112438', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 12px 30px rgba(0,0,0,0.35)' }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>Notificaciones</p>
+                <p style={{ marginTop: 8, color: COLOR_TEXTO_SEC, fontSize: 13 }}>{notificacionesUI.length === 0 ? 'No tienes notificaciones recientes.' : ''}</p>
+                <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                  {perfil?.notif_push ? (
+                    <button onClick={() => toggleNotif('notif_push')} style={{ background: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 8, padding: '8px 12px', color: COLOR_TEXTO_SEC }}>Desactivar push</button>
+                  ) : (
+                    <button onClick={() => toggleNotif('notif_push')} style={{ background: COLOR_ACENTO, border: 'none', borderRadius: 8, padding: '8px 12px', color: '#1A1500' }}>Activar push</button>
+                  )}
+                </div>
+              </div>
+            )
+          )}
         </div>
       )}
 
