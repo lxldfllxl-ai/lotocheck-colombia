@@ -674,9 +674,6 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: COLOR_FONDO, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '10px', boxSizing: 'border-box' }}>
-      <button onClick={() => setMostrarNotificacionesPanel((prev) => !prev)} style={{ position: 'fixed', top: 18, right: 18, zIndex: 1250, width: 44, height: 44, borderRadius: '50%', border: `1px solid ${COLOR_BORDE}`, backgroundColor: COLOR_CARD, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 24px rgba(0,0,0,0.22)' }} aria-label="Abrir notificaciones">
-        <Bell size={20} />
-      </button>
 
       {(notificacionesUI.length > 0 || mostrarNotificacionesPanel) && (
         <div style={{ position: 'fixed', top: 18, right: 18, zIndex: 1200, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 340 }}>
@@ -726,9 +723,14 @@ export default function Home() {
               </div>
             </div>
             {usuario ? (
-              <button onClick={() => setTab('ajustes')} style={{ background: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 10, padding: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Settings size={18} color={COLOR_ACENTO} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button onClick={() => setMostrarNotificacionesPanel((prev) => !prev)} style={{ background: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 10, padding: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Bell size={18} color={COLOR_ACENTO} />
+                </button>
+                <button onClick={() => setTab('ajustes')} style={{ background: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 10, padding: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Settings size={18} color="#fff" />
+                </button>
+              </div>
             ) : (
               <button onClick={() => window.location.href = '/login'} style={{ background: COLOR_ACENTO, border: 'none', borderRadius: 8, padding: '8px 20px', color: '#1A1500', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                 Entrar
