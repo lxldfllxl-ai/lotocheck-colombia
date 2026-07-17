@@ -501,7 +501,11 @@ function PanelResultados() {
       }
       const resKey = await fetch('/api/notificaciones');
       const keyData = await resKey.json();
-      const vapidKey = keyData.vapidPublicKey;
+      const vapidKey = (keyData.vapidPublicKey || '').trim();
+      if (!vapidKey || !/^[A-Za-z0-9_-]+$/.test(vapidKey)) {
+        setTestStatus({ tipo: 'error', texto: 'Clave VAPID inválida o no disponible.' });
+        return;
+      }
       const padding = '='.repeat((4 - (vapidKey.length % 4)) % 4);
       const base64 = (vapidKey + padding).replace(/-/g, '+').replace(/_/g, '/');
       const rawData = window.atob(base64);

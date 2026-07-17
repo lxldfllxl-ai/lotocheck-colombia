@@ -62,10 +62,23 @@ export default function Home() {
       if (data.noticias) setNoticias(data.noticias);
     }).catch(() => setNoticias([])).finally(() => setCargandoNoticias(false));
 
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      fetch('/api/notificaciones').then(r => r.json()).then(data => {
-        if (data.vapidPublicKey) setVapidPublicKey(data.vapidPublicKey);
-      }).catch(() => {}).finally(() => setPushReady(true));
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
+      fetch('/api/notificaciones')
+        .then((r) => r.json())
+        .then((data) => {
+          const key = (data?.vapidPublicKey || '').trim();
+          if (key && /^[A-Za-z0-9_-]+$/.test(key)) {
+            setVapidPublicKey(key);
+            setPushReady(true);
+          } else {
+            console.error('Clave VAPID inválida en /api/notificaciones:', data?.vapidPublicKey);
+            setPushReady(false);
+          }
+        })
+        .catch((err) => {
+          console.error('Error obteniendo VAPID key:', err);
+          setPushReady(false);
+        });
     }
   }, []);
 
@@ -530,24 +543,47 @@ export default function Home() {
     return outputArray;
   }
 
+  function isValidVapidKey(key) {
+    return typeof key === 'string' && /^[A-Za-z0-9_-]+$/.test(key);
+  }
+
   async function subscribeToPush() {
     try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        addNotificacion({ tipo: 'error', titulo: 'Push no soportado', mensaje: 'Tu navegador no soporta notificaciones push.' });
+        return null;
+      }
       const permiso = await Notification.requestPermission();
       if (permiso !== 'granted') {
         addNotificacion({ tipo: 'warning', titulo: 'Permiso denegado', mensaje: 'Activa las notificaciones en tu navegador para recibir alertas.' });
         return null;
       }
-      if (!vapidPublicKey) {
+      const vapidKey = vapidPublicKey?.trim();
+      if (!vapidKey) {
         addNotificacion({ tipo: 'error', titulo: 'Falta clave VAPID', mensaje: 'No se pudo activar push en este momento.' });
         return null;
       }
+      if (!isValidVapidKey(vapidKey)) {
+        console.error('Clave VAPID inválida:', vapidKey);
+        addNotificacion({ tipo: 'error', titulo: 'Clave VAPID inválida', mensaje: 'La clave VAPID configurada no es válida.' });
+        return null;
+      }
       const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service worker registrado con scope:', registration.scope);
       let subscription = await registration.pushManager.getSubscription();
       if (!subscription) {
+        let applicationServerKey;
+        try {
+          applicationServerKey = urlBase64ToUint8Array(vapidKey);
+        } catch (subErr) {
+          console.error('Error decodificando VAPID key:', subErr, vapidKey);
+          addNotificacion({ tipo: 'error', titulo: 'Clave VAPID inválida', mensaje: 'No se pudo decodificar la clave VAPID.' });
+          return null;
+        }
         try {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+            applicationServerKey,
           });
         } catch (subErr) {
           console.error('Error during pushManager.subscribe:', subErr);
