@@ -420,6 +420,8 @@ function PanelResultados() {
   const [resultados, setResultados] = useState({});
   const [guardando, setGuardando] = useState(null);
   const [mensaje, setMensaje] = useState({});
+  const [testEmail, setTestEmail] = useState('');
+  const [testStatus, setTestStatus] = useState(null);
 
   useEffect(() => { cargar(); }, []);
 
@@ -470,6 +472,26 @@ function PanelResultados() {
     setGuardando(null);
   }
 
+  async function enviarPruebaNotificacion() {
+    setTestStatus({ tipo: 'info', texto: 'Enviando prueba...' });
+    try {
+      const res = await fetch('/api/admin/notificaciones/prueba', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: testEmail || '', tipo: 'email' }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTestStatus({ tipo: 'error', texto: data.error || 'Error al enviar prueba.' });
+      } else {
+        setTestStatus({ tipo: 'ok', texto: 'Prueba enviada. Revisa tu correo.' });
+      }
+    } catch (err) {
+      console.error('Error de prueba:', err);
+      setTestStatus({ tipo: 'error', texto: 'Error de red al enviar prueba.' });
+    }
+  }
+
   const porCategoria = juegos.reduce((acc, j) => {
     if (!acc[j.categoria]) acc[j.categoria] = [];
     acc[j.categoria].push(j);
@@ -484,7 +506,19 @@ function PanelResultados() {
   return (
     <div>
       <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Actualizar resultados</p>
-      <p style={{ color: '#555', fontSize: 13, marginBottom: 24 }}>Toca un juego para abrir y registrar el resultado del sorteo.</p>
+      <p style={{ color: '#555', fontSize: 13, marginBottom: 24 }}>Toca un juego para abrir y registrar el resultado del sorteo. Las notificaciones se enviarán automáticamente a usuarios con configuración activa.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 24, alignItems: 'end' }}>
+        <div>
+          <label style={{ display: 'block', color: '#AAA', fontSize: 12, marginBottom: 6 }}>Correo de prueba</label>
+          <input value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="tu@correo.com" style={{ width: '100%', backgroundColor: '#0A0A0A', border: '1px solid #2A2A2A', borderRadius: 10, padding: '10px 12px', color: '#E0E0E0' }} />
+        </div>
+        <button onClick={enviarPruebaNotificacion} style={{ background: '#2563EB', border: 'none', borderRadius: 10, padding: '12px 18px', color: '#fff', cursor: 'pointer' }}>Enviar prueba</button>
+      </div>
+      {testStatus && (
+        <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: testStatus.tipo === 'ok' ? '#0B4228' : testStatus.tipo === 'error' ? '#3F0F0F' : '#1D1F28', color: testStatus.tipo === 'ok' ? '#86EFAC' : '#FCA5A5', marginBottom: 24 }}>
+          {testStatus.texto}
+        </div>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         {Object.entries(porCategoria).map(([cat, lista]) => (
           <div key={cat}>

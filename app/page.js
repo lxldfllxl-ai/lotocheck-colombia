@@ -31,6 +31,9 @@ export default function Home() {
   const [nombresPlanes, setNombresPlanes] = useState({ gratis: 'Gratis', basico: 'Basico', pro: 'Pro', premium: 'Premium' });
   const [noticias, setNoticias] = useState([]);
   const [cargandoNoticias, setCargandoNoticias] = useState(true);
+  const [notificacionesUI, setNotificacionesUI] = useState([]);
+  const [vapidPublicKey, setVapidPublicKey] = useState('');
+  const [pushReady, setPushReady] = useState(false);
 
   // Cola de boletos escaneados con estado individual
   const [boletosEscaneados, setBoletosEscaneados] = useState([]); // [{...datos, estado:'pendiente'|'guardado'|'seleccionado'}]
@@ -57,6 +60,12 @@ export default function Home() {
     fetch('/api/noticias').then(r => r.json()).then(data => {
       if (data.noticias) setNoticias(data.noticias);
     }).catch(() => setNoticias([])).finally(() => setCargandoNoticias(false));
+
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      fetch('/api/notificaciones').then(r => r.json()).then(data => {
+        if (data.vapidPublicKey) setVapidPublicKey(data.vapidPublicKey);
+      }).catch(() => {}).finally(() => setPushReady(true));
+    }
   }, []);
 
   async function cargarJuegos() {
@@ -493,10 +502,104 @@ export default function Home() {
     setTab('inicio');
   }
 
+  async function actualizarPerfil(datos) {
+    if (!usuario) return { data: null, error: 'No hay usuario' };
+    const { data, error } = await supabase.from('profiles').update(datos).eq('id', usuario.id).select().single();
+    if (!error && data) setPerfil(data);
+    return { data, error };
+  }
+
+  function addNotificacion(nuevo) {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    setNotificacionesUI(prev => [{ id, ...nuevo }, ...prev].slice(0, 4));
+  }
+
+  function dismissNotificacion(id) {
+    setNotificacionesUI(prev => prev.filter((item) => item.id !== id));
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  async function subscribeToPush() {
+    try {
+      const permiso = await Notification.requestPermission();
+      if (permiso !== 'granted') {
+        addNotificacion({ tipo: 'warning', titulo: 'Permiso denegado', mensaje: 'Activa las notificaciones en tu navegador para recibir alertas.' });
+        return null;
+      }
+      if (!vapidPublicKey) {
+        addNotificacion({ tipo: 'error', titulo: 'Falta clave VAPID', mensaje: 'No se pudo activar push en este momento.' });
+        return null;
+      }
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        });
+      }
+      return subscription.toJSON ? subscription.toJSON() : subscription;
+    } catch (error) {
+      console.error('Error subscripcion push:', error);
+      addNotificacion({ tipo: 'error', titulo: 'Error push', mensaje: 'No se pudo activar las notificaciones push.' });
+      return null;
+    }
+  }
+
+  async function unsubscribePush() {
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) return false;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) await subscription.unsubscribe();
+      return true;
+    } catch (error) {
+      console.error('Error desuscribir push:', error);
+      return false;
+    }
+  }
+
   async function toggleNotif(key) {
     const nuevo = !perfil?.[key];
-    await supabase.from('profiles').update({ [key]: nuevo }).eq('id', usuario.id);
-    setPerfil(prev => ({ ...prev, [key]: nuevo }));
+    if (key === 'notif_push') {
+      if (nuevo) {
+        if (!pushReady) {
+          addNotificacion({ tipo: 'error', titulo: 'Push no soportado', mensaje: 'Tu navegador no soporta notificaciones push.' });
+          return;
+        }
+        const subscription = await subscribeToPush();
+        if (!subscription) return;
+        const { error } = await actualizarPerfil({ notif_push: true, push_subscription: subscription });
+        if (error) {
+          addNotificacion({ tipo: 'error', titulo: 'Error activando push', mensaje: 'No se pudo guardar la suscripcion.' });
+        } else {
+          addNotificacion({ tipo: 'success', titulo: 'Push activado', mensaje: 'Recibirás alertas cuando haya resultados.' });
+        }
+        return;
+      }
+
+      await unsubscribePush();
+      const { error } = await actualizarPerfil({ notif_push: false, push_subscription: null });
+      if (!error) {
+        addNotificacion({ tipo: 'success', titulo: 'Push desactivado', mensaje: 'No recibirás más alertas push.' });
+      }
+      return;
+    }
+
+    const { error } = await actualizarPerfil({ [key]: nuevo });
+    if (!error) {
+      addNotificacion({ tipo: 'success', titulo: nuevo ? 'Notificación activada' : 'Notificación desactivada', mensaje: key === 'notif_correo' ? 'Preferencias de correo actualizadas.' : 'Preferencias actualizadas.' });
+    }
   }
 
   const label = { fontSize: 11, fontWeight: 600, color: COLOR_TEXTO_SEC, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, display: 'block' };
@@ -515,6 +618,22 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: COLOR_FONDO, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '10px', boxSizing: 'border-box' }}>
+
+      {notificacionesUI.length > 0 && (
+        <div style={{ position: 'fixed', top: 18, right: 18, zIndex: 1200, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 340 }}>
+          {notificacionesUI.map((item) => (
+            <div key={item.id} style={{ backgroundColor: '#112438', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 12px 30px rgba(0,0,0,0.35)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>{item.titulo}</p>
+                  {item.mensaje && <p style={{ margin: '8px 0 0', fontSize: 12, color: COLOR_TEXTO_SEC, lineHeight: 1.5 }}>{item.mensaje}</p>}
+                </div>
+                <button onClick={() => dismissNotificacion(item.id)} style={{ background: 'transparent', border: 'none', color: COLOR_TEXTO_SEC, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>×</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {mostrarPremium && <ModalPremium onClose={() => setMostrarPremium(false)} />}
       {mostrarEscaner && <EscanerBoleto onBoletosDetectados={manejarBoletosDetectados} onCerrar={() => setMostrarEscaner(false)} />}

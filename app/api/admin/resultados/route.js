@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
 import { esquemaResultado, validar } from '../../../../lib/validaciones';
+import { enviarNotificacionesResultado } from '../../../../lib/notifications';
 
 export async function POST(request) {
   try {
@@ -24,6 +25,14 @@ export async function POST(request) {
       .upsert({ loteria, numero, serie, premio, fecha, secos, signo, quinta }, { onConflict: 'loteria,fecha' });
 
     if (errorHistorico) return NextResponse.json({ error: errorHistorico.message }, { status: 500 });
+
+    const noti = await enviarNotificacionesResultado({
+      loteria,
+      fecha,
+      premio,
+      descripcion: 'Revisa tus boletos pendientes en NotiLoto.',
+    });
+    if (noti?.error) console.error('Error enviando notificaciones:', noti.error);
 
     return NextResponse.json({ ok: true, resultado: ultimo });
   } catch (err) {
