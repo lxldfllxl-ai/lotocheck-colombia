@@ -544,7 +544,7 @@ export default function Home() {
   }
 
   async function getActiveServiceWorkerRegistration() {
-    const registration = await navigator.serviceWorker.register('/sw.js');
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     if (registration.active) {
       console.log('Service worker activo al registrar:', registration.scope);
       return registration;
@@ -635,7 +635,12 @@ export default function Home() {
         }
         const subscription = await subscribeToPush();
         if (!subscription) return;
-        const { error } = await actualizarPerfil({ notif_push: true, push_subscription: subscription });
+        const { error } = await actualizarPerfil({
+          notif_push: true,
+          push_subscription: subscription,
+          push_notifications: subscription,
+          push_notification: subscription,
+        });
         if (error) {
           addNotificacion({ tipo: 'error', titulo: 'Error activando push', mensaje: 'No se pudo guardar la suscripcion.' });
         } else {
@@ -645,7 +650,12 @@ export default function Home() {
       }
 
       await unsubscribePush();
-      const { error } = await actualizarPerfil({ notif_push: false, push_subscription: null });
+      const { error } = await actualizarPerfil({
+        notif_push: false,
+        push_subscription: null,
+        push_notifications: null,
+        push_notification: null,
+      });
       if (!error) {
         addNotificacion({ tipo: 'success', titulo: 'Push desactivado', mensaje: 'No recibirás más alertas push.' });
       }

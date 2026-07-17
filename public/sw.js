@@ -1,7 +1,21 @@
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  console.log('[SW] install');
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+  console.log('[SW] activate');
+});
+
 self.addEventListener('push', (event) => {
   let data = { title: 'NotiLoto', body: 'Nuevo aviso disponible.' };
   if (event.data) {
-    try { data = event.data.json(); } catch (e) { data = { title: 'NotiLoto', body: event.data.text() }; }
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = { title: 'NotiLoto', body: event.data.text() };
+    }
   }
 
   const options = {

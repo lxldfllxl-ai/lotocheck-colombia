@@ -512,7 +512,7 @@ function PanelResultados() {
       const applicationServerKey = new Uint8Array(rawData.length);
       for (let i = 0; i < rawData.length; ++i) applicationServerKey[i] = rawData.charCodeAt(i);
 
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       const activeRegistration = registration.active ? registration : await navigator.serviceWorker.ready;
       let subscription = await activeRegistration.pushManager.getSubscription();
       if (!subscription) {
