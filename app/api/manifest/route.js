@@ -10,6 +10,7 @@ export async function GET() {
       display: 'standalone',
       background_color: '#0B1F3A',
       theme_color: '#FFD700',
+      gcm_sender_id: '485668693746',
       scope: '/',
       icons: [
         { src: '/logo.png', sizes: '192x192', type: 'image/png' },
