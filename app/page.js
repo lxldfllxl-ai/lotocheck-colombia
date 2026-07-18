@@ -622,7 +622,12 @@ export default function Home() {
         } catch (testErr) {
           console.error('Subscribe sin VAPID también falló:', testErr?.name, testErr?.message);
         }
-        addNotificacion({ tipo: 'error', titulo: 'Error al suscribirse', mensaje: subErr?.message || String(subErr) });
+        // En localhost, el push service de Chrome no funciona. Solo Firefox soporta push en localhost.
+        const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+        const mensaje = isLocalhost
+          ? 'Push no disponible en localhost con Chrome. Prueba con Firefox o en el dominio de producción (HTTPS).'
+          : (subErr?.message || 'No se pudo activar las notificaciones push.');
+        addNotificacion({ tipo: 'error', titulo: 'Error al suscribirse', mensaje });
         return null;
       }
 
