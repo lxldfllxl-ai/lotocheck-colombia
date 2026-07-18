@@ -63,6 +63,11 @@ export default function Home() {
     }).catch(() => setNoticias([])).finally(() => setCargandoNoticias(false));
 
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
+      // Registrar el Service Worker al cargar la página (necesario para push)
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(reg => console.log('[SW] Registrado en carga inicial:', reg.scope, 'active=', !!reg.active))
+        .catch(err => console.error('[SW] Error registrando SW en carga:', err));
+
       fetch('/api/notificaciones')
         .then((r) => r.json())
         .then((data) => {
@@ -80,7 +85,38 @@ export default function Home() {
           setPushReady(false);
         });
     }
+
+    // Si hay una intención de suscripción pendiente (flag puesto antes de recarga),
+    // se procesará en el useEffect dedicado más abajo cuando pushReady y usuario estén listos.
   }, []);
+
+  // Efecto para auto-reanudar suscripción push después de recarga por permiso
+  useEffect(() => {
+    let intentFlag = false;
+    try { intentFlag = sessionStorage.getItem('push_subscribe_retry') === 'true'; } catch (_) {}
+
+    if (intentFlag && pushReady && usuario && perfil) {
+      console.log('[Push] Reanudando suscripción tras recarga...');
+      try { sessionStorage.removeItem('push_subscribe_retry'); } catch (_) {}
+      // Pequeño delay para asegurar que el SW está listo
+      const timer = setTimeout(async () => {
+        const subscription = await subscribeToPush();
+        if (!subscription) return;
+        const { error } = await actualizarPerfil({
+          notif_push: true,
+          push_subscription: subscription,
+          push_notifications: subscription,
+          push_notification: subscription,
+        });
+        if (error) {
+          addNotificacion({ tipo: 'error', titulo: 'Error activando push', mensaje: 'No se pudo guardar la suscripción.' });
+        } else {
+          addNotificacion({ tipo: 'success', titulo: 'Push activado', mensaje: 'Recibirás alertas cuando haya resultados.' });
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [pushReady, usuario, perfil]);
 
   async function cargarJuegos() {
     try {
@@ -544,16 +580,24 @@ export default function Home() {
   }
 
   async function getActiveServiceWorkerRegistration() {
-    const existing = await navigator.serviceWorker.getRegistration('/sw.js');
-    if (existing?.active) {
-      console.log('SW ya activo:', existing.scope);
-      return existing;
+    try {
+      console.log('[SW] Buscando registro existente...');
+      const existing = await navigator.serviceWorker.getRegistration();
+      if (existing?.active) {
+        console.log('[SW] SW ya activo:', existing.scope, 'state=', existing.active.state);
+        return existing;
+      }
+      console.log('[SW] No hay SW activo, registrando /sw.js...');
+      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      console.log('[SW] SW registrado:', registration.scope, 'installing=', !!registration.installing, 'waiting=', !!registration.waiting, 'active=', !!registration.active);
+      // Esperar a que esté activo
+      const ready = await navigator.serviceWorker.ready;
+      console.log('[SW] SW ready:', ready.scope, 'state=', ready.active?.state);
+      return ready;
+    } catch (err) {
+      console.error('[SW] Error en getActiveServiceWorkerRegistration:', err?.name, err?.message, err);
+      throw err;
     }
-    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-    console.log('SW registrado:', registration.scope);
-    const ready = await navigator.serviceWorker.ready;
-    console.log('SW ready:', ready.scope);
-    return ready;
   }
 
   function isValidVapidKey(key) {
@@ -566,11 +610,30 @@ export default function Home() {
         addNotificacion({ tipo: 'error', titulo: 'Push no soportado', mensaje: 'Tu navegador no soporta notificaciones push.' });
         return null;
       }
-      const permiso = await Notification.requestPermission();
-      if (permiso !== 'granted') {
-        addNotificacion({ tipo: 'warning', titulo: 'Permiso denegado', mensaje: 'Activa las notificaciones en tu navegador para recibir alertas.' });
+
+      // Verificar permiso actual sin disparar prompt (evita reload en Chrome)
+      const permisoActual = Notification.permission;
+      console.log('[Push] Permiso actual:', permisoActual);
+
+      if (permisoActual === 'denied') {
+        addNotificacion({ tipo: 'warning', titulo: 'Permiso denegado', mensaje: 'Las notificaciones están bloqueadas. Actívalas en la configuración de tu navegador.' });
         return null;
       }
+
+      // Solo pedir permiso si está en 'default' (nunca se ha preguntado)
+      if (permisoActual === 'default') {
+        // Guardar intención en sessionStorage por si el navegador recarga la página
+        try { sessionStorage.setItem('push_subscribe_retry', 'true'); } catch (_) {}
+        const permiso = await Notification.requestPermission();
+        // Si la página NO recargó, limpiamos el flag. Si recargó, el useEffect lo detectará.
+        try { sessionStorage.removeItem('push_subscribe_retry'); } catch (_) {}
+        console.log('[Push] Permiso después de prompt:', permiso);
+        if (permiso !== 'granted') {
+          addNotificacion({ tipo: 'warning', titulo: 'Permiso denegado', mensaje: 'Activa las notificaciones en tu navegador para recibir alertas.' });
+          return null;
+        }
+      }
+
       const vapidKey = vapidPublicKey?.trim();
       if (!vapidKey) {
         addNotificacion({ tipo: 'error', titulo: 'Falta clave VAPID', mensaje: 'No se pudo activar push en este momento.' });
@@ -583,8 +646,8 @@ export default function Home() {
       }
 
       // Usar el SW ya registrado (evitar doble registro)
-      const activeRegistration = await navigator.serviceWorker.ready;
-      console.log('SW ready:', activeRegistration.scope, 'active=', !!activeRegistration.active, 'state=', activeRegistration.active?.state);
+      const activeRegistration = await getActiveServiceWorkerRegistration();
+      console.log('[Push] SW obtenido:', activeRegistration.scope, 'active=', !!activeRegistration.active, 'state=', activeRegistration.active?.state);
 
       // Verificar si ya hay suscripción
       let subscription = await activeRegistration.pushManager.getSubscription();
