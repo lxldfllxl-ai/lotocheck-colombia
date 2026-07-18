@@ -23,9 +23,6 @@ export default function RootLayout({ children }) {
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <head>
-        <link rel="manifest" href="/manifest.json" crossOrigin="use-credentials" />
-      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

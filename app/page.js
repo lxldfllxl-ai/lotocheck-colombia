@@ -667,22 +667,35 @@ export default function Home() {
         return null;
       }
 
-      // Intentar suscribir con VAPID
-      try {
-        subscription = await activeRegistration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey,
-        });
-        console.log('Push subscribe OK');
-      } catch (subErr) {
-        console.error('Error pushManager.subscribe:', subErr?.name, subErr?.message, subErr);
+      // Intentar suscribir con VAPID con reintentos
+      let lastError = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          subscription = await activeRegistration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey,
+          });
+          console.log('Push subscribe OK en intento', attempt);
+          break;
+        } catch (subErr) {
+          lastError = subErr;
+          console.error(`Error pushManager.subscribe (intento ${attempt}/3):`, subErr?.name, subErr?.message);
+          if (attempt < 3) {
+            const delay = attempt * 1000;
+            console.log(`Reintentando en ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+          }
+        }
+      }
+      if (!subscription) {
+        const subErr = lastError;
         const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
         const isVercelPreview = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
         let mensaje = subErr?.message || 'No se pudo activar las notificaciones push.';
         if (isLocalhost) {
           mensaje = 'Push no disponible en localhost con Chrome. Prueba con Firefox o en el dominio de producción (HTTPS).';
         } else if (isVercelPreview) {
-          mensaje = 'Error de conexión con el servicio push. Esto puede ocurrir en URLs de preview de Vercel. Intenta en el dominio de producción.';
+          mensaje = 'Error de conexión con el servicio push. Verifica que tu dominio esté autorizado en Firebase y que la clave VAPID pública en Firebase coincida con la de tu app.';
         }
         addNotificacion({ tipo: 'error', titulo: 'Error al suscribirse', mensaje });
         return null;
