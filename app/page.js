@@ -667,6 +667,25 @@ export default function Home() {
         return null;
       }
 
+      // Diagnóstico: probar si el push service responde sin VAPID
+      console.log('[Push] Diagnóstico: probando subscribe sin applicationServerKey...');
+      try {
+        const testSub = await activeRegistration.pushManager.subscribe({ userVisibleOnly: true });
+        console.log('[Push] DIAG: Subscribe sin VAPID FUNCIONÓ. El push service está disponible.');
+        // Desuscribir inmediatamente, solo era prueba
+        await testSub.unsubscribe();
+        console.log('[Push] DIAG: Test subscription removed.');
+      } catch (testErr) {
+        console.error('[Push] DIAG: Subscribe sin VAPID FALLÓ:', testErr?.name, testErr?.message);
+        // Esto significa que el push service de Chrome no está disponible para este dominio
+        addNotificacion({
+          tipo: 'error',
+          titulo: 'Servicio push no disponible',
+          mensaje: 'El servicio de notificaciones push de Chrome no está disponible para este dominio. Verifica que el dominio esté autorizado en Firebase Console → Authentication → Settings → Authorized domains.'
+        });
+        return null;
+      }
+
       // Intentar suscribir con VAPID con reintentos
       let lastError = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
