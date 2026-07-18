@@ -1,5 +1,3 @@
-
-//upta
 'use client';
 import { useState, useEffect } from 'react';
 import { Search, Calendar, Ticket, Settings, Bell, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, X, Check } from 'lucide-react';
@@ -546,14 +544,16 @@ export default function Home() {
   }
 
   async function getActiveServiceWorkerRegistration() {
-    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-    if (registration.active) {
-      console.log('Service worker activo al registrar:', registration.scope);
-      return registration;
+    const existing = await navigator.serviceWorker.getRegistration('/sw.js');
+    if (existing?.active) {
+      console.log('SW ya activo:', existing.scope);
+      return existing;
     }
-    const readyRegistration = await navigator.serviceWorker.ready;
-    console.log('Service worker listo:', readyRegistration.scope);
-    return readyRegistration;
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    console.log('SW registrado:', registration.scope);
+    const ready = await navigator.serviceWorker.ready;
+    console.log('SW ready:', ready.scope);
+    return ready;
   }
 
   function isValidVapidKey(key) {
@@ -581,33 +581,51 @@ export default function Home() {
         addNotificacion({ tipo: 'error', titulo: 'Clave VAPID inválida', mensaje: 'La clave VAPID configurada no es válida.' });
         return null;
       }
-      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      await registration.update();
-      console.log('Service worker registrado y actualizado con scope:', registration.scope);
+
+      // Usar el SW ya registrado (evitar doble registro)
       const activeRegistration = await navigator.serviceWorker.ready;
-      console.log('Service worker listo:', activeRegistration.scope, 'active=', !!activeRegistration.active);
+      console.log('SW ready:', activeRegistration.scope, 'active=', !!activeRegistration.active, 'state=', activeRegistration.active?.state);
+
+      // Verificar si ya hay suscripción
       let subscription = await activeRegistration.pushManager.getSubscription();
-      if (!subscription) {
-        let applicationServerKey;
-        try {
-          applicationServerKey = urlBase64ToUint8Array(vapidKey);
-          console.log('ApplicationServerKey raw length:', applicationServerKey.length, applicationServerKey.slice(0, 5));
-        } catch (subErr) {
-          console.error('Error decodificando VAPID key:', subErr, vapidKey);
-          addNotificacion({ tipo: 'error', titulo: 'Clave VAPID inválida', mensaje: 'No se pudo decodificar la clave VAPID.' });
-          return null;
-        }
-        try {
-          subscription = await activeRegistration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey,
-          });
-        } catch (subErr) {
-          console.error('Error during pushManager.subscribe:', subErr);
-          addNotificacion({ tipo: 'error', titulo: 'Error al suscribirse', mensaje: subErr?.message || String(subErr) });
-          return null;
-        }
+      if (subscription) {
+        console.log('Ya existe suscripción push, reusando.');
+        return subscription.toJSON ? subscription.toJSON() : subscription;
       }
+
+      // Decodificar clave
+      let applicationServerKey;
+      try {
+        applicationServerKey = urlBase64ToUint8Array(vapidKey);
+        console.log('ApplicationServerKey length:', applicationServerKey.length);
+      } catch (subErr) {
+        console.error('Error decodificando VAPID key:', subErr);
+        addNotificacion({ tipo: 'error', titulo: 'Clave VAPID inválida', mensaje: 'No se pudo decodificar la clave VAPID.' });
+        return null;
+      }
+
+      // Intentar suscribir con VAPID
+      try {
+        subscription = await activeRegistration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+        console.log('Push subscribe OK');
+      } catch (subErr) {
+        console.error('Error pushManager.subscribe:', subErr?.name, subErr?.message, subErr);
+        // Diagnóstico: intentar sin applicationServerKey para ver si el push service responde
+        try {
+          console.log('Intentando subscribe sin VAPID (diagnóstico)...');
+          const testSub = await activeRegistration.pushManager.subscribe({ userVisibleOnly: true });
+          console.log('Subscribe sin VAPID funcionó — el problema es la clave VAPID');
+          await testSub.unsubscribe();
+        } catch (testErr) {
+          console.error('Subscribe sin VAPID también falló:', testErr?.name, testErr?.message);
+        }
+        addNotificacion({ tipo: 'error', titulo: 'Error al suscribirse', mensaje: subErr?.message || String(subErr) });
+        return null;
+      }
+
       return subscription.toJSON ? subscription.toJSON() : subscription;
     } catch (error) {
       console.error('Error subscripcion push:', error);
