@@ -676,20 +676,14 @@ export default function Home() {
         console.log('Push subscribe OK');
       } catch (subErr) {
         console.error('Error pushManager.subscribe:', subErr?.name, subErr?.message, subErr);
-        // Diagnóstico: intentar sin applicationServerKey para ver si el push service responde
-        try {
-          console.log('Intentando subscribe sin VAPID (diagnóstico)...');
-          const testSub = await activeRegistration.pushManager.subscribe({ userVisibleOnly: true });
-          console.log('Subscribe sin VAPID funcionó — el problema es la clave VAPID');
-          await testSub.unsubscribe();
-        } catch (testErr) {
-          console.error('Subscribe sin VAPID también falló:', testErr?.name, testErr?.message);
-        }
-        // En localhost, el push service de Chrome no funciona. Solo Firefox soporta push en localhost.
         const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-        const mensaje = isLocalhost
-          ? 'Push no disponible en localhost con Chrome. Prueba con Firefox o en el dominio de producción (HTTPS).'
-          : (subErr?.message || 'No se pudo activar las notificaciones push.');
+        const isVercelPreview = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+        let mensaje = subErr?.message || 'No se pudo activar las notificaciones push.';
+        if (isLocalhost) {
+          mensaje = 'Push no disponible en localhost con Chrome. Prueba con Firefox o en el dominio de producción (HTTPS).';
+        } else if (isVercelPreview) {
+          mensaje = 'Error de conexión con el servicio push. Esto puede ocurrir en URLs de preview de Vercel. Intenta en el dominio de producción.';
+        }
         addNotificacion({ tipo: 'error', titulo: 'Error al suscribirse', mensaje });
         return null;
       }
