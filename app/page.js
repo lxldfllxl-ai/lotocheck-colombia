@@ -104,9 +104,7 @@ export default function Home() {
         if (!subscription) return;
         const { error } = await actualizarPerfil({
           notif_push: true,
-          push_subscription: subscription,
-          push_notifications: subscription,
-          push_notification: subscription,
+          push_subscription_json: JSON.stringify(subscription),
         });
         if (error) {
           addNotificacion({ tipo: 'error', titulo: 'Error activando push', mensaje: 'No se pudo guardar la suscripción.' });
@@ -734,9 +732,7 @@ export default function Home() {
         if (!subscription) return;
         const { error } = await actualizarPerfil({
           notif_push: true,
-          push_subscription: subscription,
-          push_notifications: subscription,
-          push_notification: subscription,
+          push_subscription_json: JSON.stringify(subscription),
         });
         if (error) {
           addNotificacion({ tipo: 'error', titulo: 'Error activando push', mensaje: 'No se pudo guardar la suscripcion.' });
@@ -749,9 +745,7 @@ export default function Home() {
       await unsubscribePush();
       const { error } = await actualizarPerfil({
         notif_push: false,
-        push_subscription: null,
-        push_notifications: null,
-        push_notification: null,
+        push_subscription_json: null,
       });
       if (!error) {
         addNotificacion({ tipo: 'success', titulo: 'Push desactivado', mensaje: 'No recibirás más alertas push.' });

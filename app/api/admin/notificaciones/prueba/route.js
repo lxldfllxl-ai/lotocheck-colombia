@@ -52,12 +52,12 @@ export async function POST(request) {
 
       if (!supabaseAdmin) return NextResponse.json({ error: 'Supabase admin no configurado' }, { status: 500 });
       // Enviar push a todos los perfiles que tengan una suscripción válida
-      const { data: usuarios, error: errUsuarios } = await supabaseAdmin.from('profiles').select('id, push_subscription, push_notifications, push_notification');
+      const { data: usuarios, error: errUsuarios } = await supabaseAdmin.from('profiles').select('id, push_subscription_json');
       if (errUsuarios) return NextResponse.json({ error: errUsuarios.message }, { status: 500 });
 
       let enviados = 0;
       for (const u of usuarios || []) {
-        const subscription = u.push_subscription || u.push_notifications || u.push_notification;
+        const subscription = u.push_subscription_json;
         if (!subscription) continue;
         try {
           await sendPushNotification(subscription, { title: 'Prueba NotiLoto', body: 'Esta es una notificación push de prueba.' });
