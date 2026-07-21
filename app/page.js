@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, Calendar, Ticket, Settings, Bell, Home as HomeIcon, Camera, RefreshCw, Plus, Trash2, Crown, LogOut, ChevronRight, X, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { verificarBoletoContraResultados } from '../lib/verificacion';
@@ -132,7 +132,7 @@ export default function Home() {
   }, [pushReady, usuario, perfil, perfil?.notif_push]);
 
   // Polling de nuevos resultados para notificaciones onsite
-  const prevResultadosRef = React.useRef(null);
+  const prevResultadosRef = useRef(null);
   useEffect(() => {
     if (!usuario) return;
     const pollInterval = setInterval(async () => {
