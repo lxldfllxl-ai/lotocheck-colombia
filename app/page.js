@@ -101,9 +101,14 @@ export default function Home() {
       const timer = setTimeout(async () => {
         const subscription = await subscribeToPush();
         if (!subscription) return;
+        const subsActuales = Array.isArray(perfil?.push_subscriptions) ? perfil.push_subscriptions : (perfil?.push_subscription_json ? [perfil.push_subscription_json] : []);
+        const endpoint = subscription.endpoint;
+        const yaExiste = subsActuales.some(s => (typeof s === 'object' ? s.endpoint : null) === endpoint);
+        const nuevasSubs = yaExiste ? subsActuales : [...subsActuales, subscription];
         const { error } = await actualizarPerfil({
           notif_push: true,
-          push_subscription_json: JSON.stringify(subscription),
+          push_subscriptions: nuevasSubs,
+          push_subscription_json: subscription,
         });
         if (error) {
           addNotificacion({ tipo: 'error', titulo: 'Error activando push', mensaje: 'No se pudo guardar la suscripción.' });
@@ -825,31 +830,58 @@ export default function Home() {
     const nuevo = !perfil?.[key];
     if (key === 'notif_push') {
       if (nuevo) {
+        // Siempre guardar la preferencia en el perfil primero (funciona cross-device)
+        const { error: errSave } = await actualizarPerfil({ notif_push: true });
+        if (errSave) {
+          addNotificacion({ tipo: 'error', titulo: 'Error', mensaje: 'No se pudo guardar la preferencia.' });
+          return;
+        }
+        // Intentar suscribir este dispositivo si el navegador lo soporta
         if (!pushReady) {
-          addNotificacion({ tipo: 'error', titulo: 'Push no soportado', mensaje: 'Tu navegador no soporta notificaciones push.' });
+          addNotificacion({ tipo: 'success', titulo: 'Push activado', mensaje: 'Recibirás alertas en tus otros dispositivos. Este navegador no soporta push.' });
           return;
         }
         const subscription = await subscribeToPush();
-        if (!subscription) return;
+        if (!subscription) {
+          // No se pudo suscribir este dispositivo, pero la preferencia ya está guardada
+          addNotificacion({ tipo: 'success', titulo: 'Push activado', mensaje: 'Recibirás alertas en tus otros dispositivos. Activa los permisos en este para recibir aquí también.' });
+          return;
+        }
+        // Agregar esta suscripción al array del perfil (sin duplicados por endpoint)
+        const subsActuales = Array.isArray(perfil?.push_subscriptions) ? perfil.push_subscriptions : (perfil?.push_subscription_json ? [perfil.push_subscription_json] : []);
+        const endpoint = subscription.endpoint;
+        const yaExiste = subsActuales.some(s => (typeof s === 'object' ? s.endpoint : null) === endpoint);
+        const nuevasSubs = yaExiste ? subsActuales : [...subsActuales, subscription];
         const { error } = await actualizarPerfil({
-          notif_push: true,
-          push_subscription_json: JSON.stringify(subscription),
+          push_subscriptions: nuevasSubs,
+          push_subscription_json: subscription, // mantener compatibilidad
         });
         if (error) {
-          addNotificacion({ tipo: 'error', titulo: 'Error activando push', mensaje: 'No se pudo guardar la suscripcion.' });
+          addNotificacion({ tipo: 'error', titulo: 'Error activando push', mensaje: 'No se pudo guardar la suscripción.' });
         } else {
           addNotificacion({ tipo: 'success', titulo: 'Push activado', mensaje: 'Recibirás alertas cuando haya resultados.' });
         }
         return;
       }
 
+      // Desactivar push: quitar solo este dispositivo del array
       await unsubscribePush();
+      const subsActuales = Array.isArray(perfil?.push_subscriptions) ? perfil.push_subscriptions : (perfil?.push_subscription_json ? [perfil.push_subscription_json] : []);
+      // Obtener endpoint actual para removerlo del array
+      let endpointActual = null;
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        endpointActual = sub?.endpoint || null;
+      } catch (_) {}
+      const nuevasSubs = endpointActual ? subsActuales.filter(s => (typeof s === 'object' ? s.endpoint : null) !== endpointActual) : [];
       const { error } = await actualizarPerfil({
-        notif_push: false,
-        push_subscription_json: null,
+        notif_push: nuevasSubs.length > 0, // si quedan otros dispositivos, sigue true
+        push_subscriptions: nuevasSubs.length > 0 ? nuevasSubs : null,
+        push_subscription_json: nuevasSubs.length > 0 ? nuevasSubs[0] : null,
       });
       if (!error) {
-        addNotificacion({ tipo: 'success', titulo: 'Push desactivado', mensaje: 'No recibirás más alertas push.' });
+        addNotificacion({ tipo: 'success', titulo: 'Push desactivado', mensaje: 'No recibirás más alertas push en este dispositivo.' });
       }
       return;
     }
@@ -1498,7 +1530,11 @@ export default function Home() {
               setMostrarBannerPush(false);
               const sub = await subscribeToPush();
               if (sub) {
-                await actualizarPerfil({ push_subscription_json: JSON.stringify(sub) });
+                const subsActuales = Array.isArray(perfil?.push_subscriptions) ? perfil.push_subscriptions : (perfil?.push_subscription_json ? [perfil.push_subscription_json] : []);
+                const endpoint = sub.endpoint;
+                const yaExiste = subsActuales.some(s => (typeof s === 'object' ? s.endpoint : null) === endpoint);
+                const nuevasSubs = yaExiste ? subsActuales : [...subsActuales, sub];
+                await actualizarPerfil({ push_subscriptions: nuevasSubs, push_subscription_json: sub });
               }
             }} style={{ background: COLOR_ACENTO, border: 'none', borderRadius: 8, padding: '7px 14px', color: '#1A1500', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
               Activar

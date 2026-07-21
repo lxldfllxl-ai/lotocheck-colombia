@@ -51,19 +51,27 @@ export async function POST(request) {
       }
 
       if (!supabaseAdmin) return NextResponse.json({ error: 'Supabase admin no configurado' }, { status: 500 });
-      // Enviar push a todos los perfiles que tengan una suscripción válida
-      const { data: usuarios, error: errUsuarios } = await supabaseAdmin.from('profiles').select('id, push_subscription_json');
+      // Enviar push a todos los perfiles que tengan suscripciones válidas
+      const { data: usuarios, error: errUsuarios } = await supabaseAdmin.from('profiles').select('id, push_subscription_json, push_subscriptions');
       if (errUsuarios) return NextResponse.json({ error: errUsuarios.message }, { status: 500 });
 
       let enviados = 0;
       for (const u of usuarios || []) {
-        const subscription = u.push_subscription_json;
-        if (!subscription) continue;
-        try {
-          await sendPushNotification(subscription, { title: 'Prueba NotiLoto', body: 'Esta es una notificación push de prueba.' });
-          enviados += 1;
-        } catch (e) {
-          console.error('Error enviando push a usuario', u.id, e?.message || e);
+        // Obtener todas las suscripciones del usuario (array nuevo + fallback al campo antiguo)
+        let subscriptions = [];
+        if (Array.isArray(u.push_subscriptions) && u.push_subscriptions.length > 0) {
+          subscriptions = u.push_subscriptions;
+        } else if (u.push_subscription_json) {
+          subscriptions = [u.push_subscription_json];
+        }
+        if (subscriptions.length === 0) continue;
+        for (const sub of subscriptions) {
+          try {
+            await sendPushNotification(sub, { title: 'Prueba NotiLoto', body: 'Esta es una notificación push de prueba.' });
+            enviados += 1;
+          } catch (e) {
+            console.error('Error enviando push a usuario', u.id, e?.message || e);
+          }
         }
       }
 
