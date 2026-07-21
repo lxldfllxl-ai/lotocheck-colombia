@@ -66,8 +66,7 @@ export default function Home() {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
       // Registrar el Service Worker al cargar la página (necesario para push)
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then(reg => console.log('[SW] Registrado en carga inicial:', reg.scope, 'active=', !!reg.active))
-        .catch(err => console.error('[SW] Error registrando SW en carga:', err));
+        .catch(() => {});
 
       fetch('/api/notificaciones')
         .then((r) => r.json())
@@ -77,12 +76,10 @@ export default function Home() {
             setVapidPublicKey(key);
             setPushReady(true);
           } else {
-            console.error('Clave VAPID inválida en /api/notificaciones:', data?.vapidPublicKey);
             setPushReady(false);
           }
         })
         .catch((err) => {
-          console.error('Error obteniendo VAPID key:', err);
           setPushReady(false);
         });
     }
@@ -97,7 +94,6 @@ export default function Home() {
     try { intentFlag = sessionStorage.getItem('push_subscribe_retry') === 'true'; } catch (_) {}
 
     if (intentFlag && pushReady && usuario && perfil) {
-      console.log('[Push] Reanudando suscripción tras recarga...');
       try { sessionStorage.removeItem('push_subscribe_retry'); } catch (_) {}
       // Pequeño delay para asegurar que el SW está listo
       const timer = setTimeout(async () => {
@@ -135,6 +131,35 @@ export default function Home() {
     }
   }, [pushReady, usuario, perfil, perfil?.notif_push]);
 
+  // Polling de nuevos resultados para notificaciones onsite
+  const prevResultadosRef = React.useRef(null);
+  useEffect(() => {
+    if (!usuario) return;
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/resultados');
+        const data = await res.json();
+        if (!Array.isArray(data) || data.length === 0) return;
+        const prev = prevResultadosRef.current;
+        // Detectar nuevos resultados comparando con la lista anterior
+        if (prev && prev.length > 0) {
+          for (const r of data) {
+            const old = prev.find(p => p.loteria === r.loteria);
+            if (!old || old.numero !== r.numero || old.serie !== r.serie || old.fecha !== r.fecha) {
+              addNotificacion({
+                tipo: 'info',
+                titulo: `Nuevo resultado: ${r.loteria}`,
+                mensaje: `${r.numero}${r.serie ? ' - ' + r.serie : ''} — ${r.premio || ''}`,
+              });
+            }
+          }
+        }
+        prevResultadosRef.current = data;
+      } catch (_) { /* ignorar errores de polling */ }
+    }, 60000); // cada 60 segundos
+    return () => clearInterval(pollInterval);
+  }, [usuario]);
+
   async function cargarJuegos() {
     try {
       const res = await fetch('/api/juegos');
@@ -168,6 +193,7 @@ export default function Home() {
       const res = await fetch('/api/resultados');
       const data = await res.json();
       setResultadosReales(data);
+      prevResultadosRef.current = data;
     } catch (e) { console.error(e); }
     finally { setCargando(false); }
   }
@@ -598,21 +624,14 @@ export default function Home() {
 
   async function getActiveServiceWorkerRegistration() {
     try {
-      console.log('[SW] Buscando registro existente...');
       const existing = await navigator.serviceWorker.getRegistration();
       if (existing?.active) {
-        console.log('[SW] SW ya activo:', existing.scope, 'state=', existing.active.state);
         return existing;
       }
-      console.log('[SW] No hay SW activo, registrando /sw.js...');
       const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      console.log('[SW] SW registrado:', registration.scope, 'installing=', !!registration.installing, 'waiting=', !!registration.waiting, 'active=', !!registration.active);
-      // Esperar a que esté activo
       const ready = await navigator.serviceWorker.ready;
-      console.log('[SW] SW ready:', ready.scope, 'state=', ready.active?.state);
       return ready;
     } catch (err) {
-      console.error('[SW] Error en getActiveServiceWorkerRegistration:', err?.name, err?.message, err);
       throw err;
     }
   }
@@ -630,7 +649,6 @@ export default function Home() {
 
       // Verificar permiso actual sin disparar prompt (evita reload en Chrome)
       const permisoActual = Notification.permission;
-      console.log('[Push] Permiso actual:', permisoActual);
 
       if (permisoActual === 'denied') {
         addNotificacion({ tipo: 'warning', titulo: 'Permiso denegado', mensaje: 'Las notificaciones están bloqueadas. Actívalas en la configuración de tu navegador.' });
@@ -644,7 +662,6 @@ export default function Home() {
         const permiso = await Notification.requestPermission();
         // Si la página NO recargó, limpiamos el flag. Si recargó, el useEffect lo detectará.
         try { sessionStorage.removeItem('push_subscribe_retry'); } catch (_) {}
-        console.log('[Push] Permiso después de prompt:', permiso);
         if (permiso !== 'granted') {
           addNotificacion({ tipo: 'warning', titulo: 'Permiso denegado', mensaje: 'Activa las notificaciones en tu navegador para recibir alertas.' });
           return null;
@@ -657,19 +674,16 @@ export default function Home() {
         return null;
       }
       if (!isValidVapidKey(vapidKey)) {
-        console.error('Clave VAPID inválida:', vapidKey);
         addNotificacion({ tipo: 'error', titulo: 'Clave VAPID inválida', mensaje: 'La clave VAPID configurada no es válida.' });
         return null;
       }
 
       // Usar el SW ya registrado (evitar doble registro)
       const activeRegistration = await getActiveServiceWorkerRegistration();
-      console.log('[Push] SW obtenido:', activeRegistration.scope, 'active=', !!activeRegistration.active, 'state=', activeRegistration.active?.state);
 
       // Verificar si ya hay suscripción
       let subscription = await activeRegistration.pushManager.getSubscription();
       if (subscription) {
-        console.log('Ya existe suscripción push, reusando.');
         return subscription.toJSON ? subscription.toJSON() : subscription;
       }
 
@@ -677,9 +691,7 @@ export default function Home() {
       let applicationServerKey;
       try {
         applicationServerKey = urlBase64ToUint8Array(vapidKey);
-        console.log('ApplicationServerKey length:', applicationServerKey.length);
       } catch (subErr) {
-        console.error('Error decodificando VAPID key:', subErr);
         addNotificacion({ tipo: 'error', titulo: 'Clave VAPID inválida', mensaje: 'No se pudo decodificar la clave VAPID.' });
         return null;
       }
@@ -692,14 +704,11 @@ export default function Home() {
             userVisibleOnly: true,
             applicationServerKey,
           });
-          console.log('Push subscribe OK en intento', attempt);
           break;
         } catch (subErr) {
           lastError = subErr;
-          console.error(`Error pushManager.subscribe (intento ${attempt}/3):`, subErr?.name, subErr?.message);
           if (attempt < 3) {
             const delay = attempt * 1000;
-            console.log(`Reintentando en ${delay}ms...`);
             await new Promise(r => setTimeout(r, delay));
           }
         }
@@ -720,7 +729,6 @@ export default function Home() {
 
       return subscription.toJSON ? subscription.toJSON() : subscription;
     } catch (error) {
-      console.error('Error subscripcion push:', error);
       addNotificacion({ tipo: 'error', titulo: 'Error push', mensaje: error?.message || 'No se pudo activar las notificaciones push.' });
       return null;
     }
@@ -734,7 +742,6 @@ export default function Home() {
       if (subscription) await subscription.unsubscribe();
       return true;
     } catch (error) {
-      console.error('Error desuscribir push:', error);
       return false;
     }
   }
@@ -795,35 +802,20 @@ export default function Home() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: COLOR_FONDO, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '10px', boxSizing: 'border-box' }}>
 
-      {(notificacionesUI.length > 0 || mostrarNotificacionesPanel) && (
+      {/* Toast notifications - top right */}
+      {notificacionesUI.length > 0 && (
         <div style={{ position: 'fixed', top: 18, right: 18, zIndex: 1200, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 340 }}>
-          {notificacionesUI.length > 0 ? (
-            notificacionesUI.map((item) => (
-              <div key={item.id} style={{ backgroundColor: '#112438', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 12px 30px rgba(0,0,0,0.35)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                  <div>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>{item.titulo}</p>
-                    {item.mensaje && <p style={{ margin: '8px 0 0', fontSize: 12, color: COLOR_TEXTO_SEC, lineHeight: 1.5 }}>{item.mensaje}</p>}
-                  </div>
-                  <button onClick={() => dismissNotificacion(item.id)} style={{ background: 'transparent', border: 'none', color: COLOR_TEXTO_SEC, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>×</button>
+          {notificacionesUI.map((item) => (
+            <div key={item.id} style={{ backgroundColor: '#112438', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 12px 30px rgba(0,0,0,0.35)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>{item.titulo}</p>
+                  {item.mensaje && <p style={{ margin: '8px 0 0', fontSize: 12, color: COLOR_TEXTO_SEC, lineHeight: 1.5 }}>{item.mensaje}</p>}
                 </div>
+                <button onClick={() => dismissNotificacion(item.id)} style={{ background: 'transparent', border: 'none', color: COLOR_TEXTO_SEC, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>×</button>
               </div>
-            ))
-          ) : (
-            mostrarNotificacionesPanel && (
-              <div style={{ backgroundColor: '#112438', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 12px 30px rgba(0,0,0,0.35)' }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>Notificaciones</p>
-                <p style={{ marginTop: 8, color: COLOR_TEXTO_SEC, fontSize: 13 }}>{notificacionesUI.length === 0 ? 'No tienes notificaciones recientes.' : ''}</p>
-                <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                  {perfil?.notif_push ? (
-                    <button onClick={() => toggleNotif('notif_push')} style={{ background: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 8, padding: '8px 12px', color: COLOR_TEXTO_SEC }}>Desactivar push</button>
-                  ) : (
-                    <button onClick={() => toggleNotif('notif_push')} style={{ background: COLOR_ACENTO, border: 'none', borderRadius: 8, padding: '8px 12px', color: '#1A1500' }}>Activar push</button>
-                  )}
-                </div>
-              </div>
-            )
-          )}
+            </div>
+          ))}
         </div>
       )}
 
@@ -844,9 +836,43 @@ export default function Home() {
             </div>
             {usuario ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button onClick={() => setMostrarNotificacionesPanel((prev) => !prev)} style={{ background: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 10, padding: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Bell size={18} color={COLOR_ACENTO} />
-                </button>
+                <div style={{ position: 'relative' }}>
+                  <button onClick={() => setMostrarNotificacionesPanel((prev) => !prev)} style={{ background: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 10, padding: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Bell size={18} color={COLOR_ACENTO} />
+                  </button>
+                  {mostrarNotificacionesPanel && (
+                    <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, zIndex: 1200, width: 280, backgroundColor: '#112438', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 12px 30px rgba(0,0,0,0.5)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>Notificaciones</p>
+                        <button onClick={() => setMostrarNotificacionesPanel(false)} style={{ background: 'transparent', border: 'none', color: COLOR_TEXTO_SEC, cursor: 'pointer', fontSize: 16, padding: '2px 4px' }}>
+                          <X size={16} />
+                        </button>
+                      </div>
+                      {notificacionesUI.length === 0 ? (
+                        <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13 }}>No tienes notificaciones recientes.</p>
+                      ) : (
+                        notificacionesUI.map((item) => (
+                          <div key={item.id} style={{ backgroundColor: COLOR_CARD, borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                              <div>
+                                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#fff' }}>{item.titulo}</p>
+                                {item.mensaje && <p style={{ margin: '4px 0 0', fontSize: 11, color: COLOR_TEXTO_SEC }}>{item.mensaje}</p>}
+                              </div>
+                              <button onClick={() => dismissNotificacion(item.id)} style={{ background: 'transparent', border: 'none', color: COLOR_TEXTO_SEC, cursor: 'pointer', fontSize: 12, padding: '2px 4px' }}>×</button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                        {perfil?.notif_push ? (
+                          <button onClick={() => toggleNotif('notif_push')} style={{ background: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 8, padding: '8px 12px', color: COLOR_TEXTO_SEC, fontSize: 12, cursor: 'pointer' }}>Desactivar push</button>
+                        ) : (
+                          <button onClick={() => toggleNotif('notif_push')} style={{ background: COLOR_ACENTO, border: 'none', borderRadius: 8, padding: '8px 12px', color: '#1A1500', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Activar push</button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => setTab('ajustes')} style={{ background: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 10, padding: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Settings size={18} color="#fff" />
                 </button>
@@ -1371,7 +1397,7 @@ export default function Home() {
 
         {/* Banner: Push activo en cuenta pero no en este dispositivo */}
       {mostrarBannerPush && (
-        <div style={{ position: 'fixed', bottom: 80, left: 20, zIndex: 1100, maxWidth: 360, backgroundColor: '#112438', border: `1px solid ${COLOR_ACENTO}`, borderRadius: 14, padding: '14px 18px', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ position: 'fixed', bottom: 80, right: 20, zIndex: 1100, maxWidth: 360, backgroundColor: '#112438', border: `1px solid ${COLOR_ACENTO}`, borderRadius: 14, padding: '14px 18px', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: 12 }}>
           <Bell size={20} color={COLOR_ACENTO} style={{ flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#fff' }}>Notificaciones push activas en tu cuenta</p>

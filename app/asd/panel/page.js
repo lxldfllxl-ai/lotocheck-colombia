@@ -511,7 +511,6 @@ function PanelResultados() {
       const rawData = window.atob(base64);
       const applicationServerKey = new Uint8Array(rawData.length);
       for (let i = 0; i < rawData.length; ++i) applicationServerKey[i] = rawData.charCodeAt(i);
-      console.log('Admin push test applicationServerKey length:', applicationServerKey.length);
 
       const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       await registration.update();
@@ -540,6 +539,23 @@ function PanelResultados() {
     }
   }
 
+  async function enviarPruebaPushBroadcast() {
+    setTestStatus({ tipo: 'info', texto: 'Enviando push a TODOS los dispositivos suscritos...' });
+    try {
+      const res = await fetch('/api/admin/notificaciones/prueba', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: 'push' }),
+      });
+      const data = await res.json();
+      if (!res.ok) setTestStatus({ tipo: 'error', texto: data.error || 'Error al enviar push broadcast.' });
+      else setTestStatus({ tipo: 'ok', texto: `Push broadcast enviado a ${data.enviados || 0} dispositivo(s).` });
+    } catch (err) {
+      console.error('Error prueba push broadcast:', err);
+      setTestStatus({ tipo: 'error', texto: err?.message || 'Error al enviar push broadcast.' });
+    }
+  }
+
   const porCategoria = juegos.reduce((acc, j) => {
     if (!acc[j.categoria]) acc[j.categoria] = [];
     acc[j.categoria].push(j);
@@ -563,6 +579,7 @@ function PanelResultados() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={enviarPruebaNotificacion} style={{ background: '#2563EB', border: 'none', borderRadius: 10, padding: '12px 18px', color: '#fff', cursor: 'pointer' }}>Enviar prueba (email)</button>
           <button onClick={enviarPruebaPushLocal} style={{ background: '#10B981', border: 'none', borderRadius: 10, padding: '12px 18px', color: '#04260f', cursor: 'pointer' }}>Enviar prueba (push a este navegador)</button>
+          <button onClick={enviarPruebaPushBroadcast} style={{ background: '#F59E0B', border: 'none', borderRadius: 10, padding: '12px 18px', color: '#3a2a05', cursor: 'pointer' }}>Enviar prueba (push a TODOS)</button>
         </div>
       </div>
       {testStatus && (
