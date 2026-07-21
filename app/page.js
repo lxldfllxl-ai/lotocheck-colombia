@@ -35,6 +35,7 @@ export default function Home() {
   const [vapidPublicKey, setVapidPublicKey] = useState('');
   const [pushReady, setPushReady] = useState(false);
   const [mostrarNotificacionesPanel, setMostrarNotificacionesPanel] = useState(false);
+  const [mostrarBannerPush, setMostrarBannerPush] = useState(false); // Banner para sugerir activar push en este dispositivo
 
   // Cola de boletos escaneados con estado individual
   const [boletosEscaneados, setBoletosEscaneados] = useState([]); // [{...datos, estado:'pendiente'|'guardado'|'seleccionado'}]
@@ -115,6 +116,24 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [pushReady, usuario, perfil]);
+
+  // Detectar si push está activo en el perfil pero no en este dispositivo
+  useEffect(() => {
+    if (!pushReady || !usuario || !perfil) return;
+    if (!perfil.notif_push) { setMostrarBannerPush(false); return; }
+    // Verificar si este dispositivo tiene suscripción activa
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.ready.then(async (reg) => {
+        const sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          // Push activo en perfil pero no en este dispositivo → mostrar banner
+          setMostrarBannerPush(true);
+        } else {
+          setMostrarBannerPush(false);
+        }
+      }).catch(() => {});
+    }
+  }, [pushReady, usuario, perfil, perfil?.notif_push]);
 
   async function cargarJuegos() {
     try {
@@ -1350,7 +1369,32 @@ export default function Home() {
 
         </div>
 
-        {/* Menu Inferior */}
+        {/* Banner: Push activo en cuenta pero no en este dispositivo */}
+      {mostrarBannerPush && (
+        <div style={{ position: 'fixed', bottom: 80, left: 20, zIndex: 1100, maxWidth: 360, backgroundColor: '#112438', border: `1px solid ${COLOR_ACENTO}`, borderRadius: 14, padding: '14px 18px', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Bell size={20} color={COLOR_ACENTO} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#fff' }}>Notificaciones push activas en tu cuenta</p>
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: COLOR_TEXTO_SEC, lineHeight: 1.4 }}>Actívalas también en este dispositivo para recibir alertas.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button onClick={async () => {
+              setMostrarBannerPush(false);
+              const sub = await subscribeToPush();
+              if (sub) {
+                await actualizarPerfil({ push_subscription_json: JSON.stringify(sub) });
+              }
+            }} style={{ background: COLOR_ACENTO, border: 'none', borderRadius: 8, padding: '7px 14px', color: '#1A1500', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              Activar
+            </button>
+            <button onClick={() => setMostrarBannerPush(false)} style={{ background: 'transparent', border: 'none', color: COLOR_TEXTO_SEC, cursor: 'pointer', fontSize: 16, padding: '4px 6px' }}>
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Menu Inferior */}
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: COLOR_FONDO, borderTop: `1px solid ${COLOR_BORDE}`, display: 'flex', justifyContent: 'center', zIndex: 999 }}>
           <div style={{ width: '100%', maxWidth: 1800, display: 'flex', justifyContent: 'space-around' }}>
             {[

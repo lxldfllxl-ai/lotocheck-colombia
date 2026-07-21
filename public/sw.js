@@ -24,6 +24,9 @@ self.addEventListener('push', (event) => {
     badge: '/logo.png',
     data: data.data || {},
     vibrate: [100, 50, 100],
+    requireInteraction: false,
+    tag: data.tag || 'notiloto-resultado',
+    silent: false,
   };
 
   event.waitUntil(self.registration.showNotification(data.title, options));
