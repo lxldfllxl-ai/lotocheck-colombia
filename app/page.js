@@ -31,7 +31,9 @@ export default function Home() {
   const [nombresPlanes, setNombresPlanes] = useState({ gratis: 'Gratis', basico: 'Basico', pro: 'Pro', premium: 'Premium' });
   const [noticias, setNoticias] = useState([]);
   const [cargandoNoticias, setCargandoNoticias] = useState(true);
-  const [notificacionesUI, setNotificacionesUI] = useState([]);
+  const [notificacionesUI, setNotificacionesUI] = useState([]); // toasts efímeros (auto-desaparecen)
+  const [notificacionesPersist, setNotificacionesPersist] = useState([]); // notificaciones guardadas en Supabase
+  const [noLeidas, setNoLeidas] = useState(0); // contador de no leídas para el badge
   const [vapidPublicKey, setVapidPublicKey] = useState('');
   const [pushReady, setPushReady] = useState(false);
   const [mostrarNotificacionesPanel, setMostrarNotificacionesPanel] = useState(false);
@@ -146,7 +148,7 @@ export default function Home() {
           for (const r of data) {
             const old = prev.find(p => p.loteria === r.loteria);
             if (!old || old.numero !== r.numero || old.serie !== r.serie || old.fecha !== r.fecha) {
-              addNotificacion({
+              addNotificacionPersistente({
                 tipo: 'info',
                 titulo: `Nuevo resultado: ${r.loteria}`,
                 mensaje: `${r.numero}${r.serie ? ' - ' + r.serie : ''} — ${r.premio || ''}`,
@@ -174,7 +176,12 @@ export default function Home() {
   async function checkUsuario() {
     if (!supabase) return;
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) { setUsuario(user); await cargarPerfil(user.id); await cargarBoletos(user.id); }
+    if (user) {
+      setUsuario(user);
+      await cargarPerfil(user.id);
+      await cargarBoletos(user.id);
+      cargarNotificacionesPersist();
+    }
   }
 
   async function cargarPerfil(userId) {
@@ -602,13 +609,81 @@ export default function Home() {
     return { data, error };
   }
 
-  function addNotificacion(nuevo) {
+  // Toast efímero: se muestra arriba a la derecha y desaparece solo
+  function addNotificacion(nuevo, opts = {}) {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const toast = { id, ...nuevo };
     setNotificacionesUI(prev => [{ id, ...nuevo }, ...prev].slice(0, 4));
+    // Auto-dismiss después de N segundos (default 5s)
+    const segundos = opts.duracion ?? 5;
+    if (segundos > 0) {
+      setTimeout(() => dismissNotificacion(id), segundos * 1000);
+    }
+  }
+
+  // Notificación persistente: se guarda en Supabase y cuenta como no leída
+  async function addNotificacionPersistente(nuevo) {
+    if (!usuario || !supabase) {
+      // Sin sesión: caer a toast efímero
+      addNotificacion(nuevo);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('notificaciones_onsite')
+        .insert({
+          user_id: usuario.id,
+          tipo: nuevo.tipo || 'info',
+          titulo: nuevo.titulo,
+          mensaje: nuevo.mensaje || null,
+        })
+        .select()
+        .single();
+      if (!error && data) {
+        setNotificacionesPersist(prev => [data, ...prev].slice(0, 50));
+        setNoLeidas(prev => prev + 1);
+      }
+    } catch (_) { /* ignorar */ }
   }
 
   function dismissNotificacion(id) {
     setNotificacionesUI(prev => prev.filter((item) => item.id !== id));
+  }
+
+  // Cargar notificaciones persistentes desde Supabase
+  async function cargarNotificacionesPersist() {
+    if (!usuario || !supabase) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch('/api/notificaciones-onsite', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      if (data.notificaciones) {
+        setNotificacionesPersist(data.notificaciones);
+        setNoLeidas(data.noLeidas || 0);
+      }
+    } catch (_) { /* ignorar */ }
+  }
+
+  // Marcar todas como leídas
+  async function marcarTodasLeidas() {
+    if (!usuario || !supabase || noLeidas === 0) return;
+    setNoLeidas(0);
+    setNotificacionesPersist(prev => prev.map(n => ({ ...n, leida: true })));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await fetch('/api/notificaciones-onsite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ marcarTodas: true }),
+      });
+    } catch (_) { /* ignorar */ }
   }
 
   function urlBase64ToUint8Array(base64String) {
@@ -837,28 +912,43 @@ export default function Home() {
             {usuario ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ position: 'relative' }}>
-                  <button onClick={() => setMostrarNotificacionesPanel((prev) => !prev)} style={{ background: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 10, padding: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button onClick={() => { setMostrarNotificacionesPanel((prev) => !prev); if (!mostrarNotificacionesPanel) cargarNotificacionesPersist(); }} style={{ background: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 10, padding: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                     <Bell size={18} color={COLOR_ACENTO} />
+                    {noLeidas > 0 && (
+                      <span style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#E53E3E', color: '#fff', fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', boxSizing: 'border-box' }}>
+                        {noLeidas > 99 ? '99+' : noLeidas}
+                      </span>
+                    )}
                   </button>
                   {mostrarNotificacionesPanel && (
-                    <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, zIndex: 1200, width: 280, backgroundColor: '#112438', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 12px 30px rgba(0,0,0,0.5)' }}>
+                    <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, zIndex: 1200, width: 300, maxHeight: 400, overflowY: 'auto', backgroundColor: '#112438', border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 12px 30px rgba(0,0,0,0.5)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>Notificaciones</p>
-                        <button onClick={() => setMostrarNotificacionesPanel(false)} style={{ background: 'transparent', border: 'none', color: COLOR_TEXTO_SEC, cursor: 'pointer', fontSize: 16, padding: '2px 4px' }}>
-                          <X size={16} />
-                        </button>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {noLeidas > 0 && (
+                            <button onClick={marcarTodasLeidas} style={{ background: 'transparent', border: 'none', color: COLOR_ACENTO, cursor: 'pointer', fontSize: 11, fontWeight: 600, padding: '2px 6px' }}>
+                              Marcar leídas
+                            </button>
+                          )}
+                          <button onClick={() => setMostrarNotificacionesPanel(false)} style={{ background: 'transparent', border: 'none', color: COLOR_TEXTO_SEC, cursor: 'pointer', fontSize: 16, padding: '2px 4px' }}>
+                            <X size={16} />
+                          </button>
+                        </div>
                       </div>
-                      {notificacionesUI.length === 0 ? (
-                        <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13 }}>No tienes notificaciones recientes.</p>
+                      {notificacionesPersist.length === 0 ? (
+                        <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13 }}>No tienes notificaciones.</p>
                       ) : (
-                        notificacionesUI.map((item) => (
-                          <div key={item.id} style={{ backgroundColor: COLOR_CARD, borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                        notificacionesPersist.map((item) => (
+                          <div key={item.id} style={{ backgroundColor: COLOR_CARD, borderRadius: 10, padding: '10px 12px', marginBottom: 8, opacity: item.leida ? 0.6 : 1 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                               <div>
                                 <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#fff' }}>{item.titulo}</p>
                                 {item.mensaje && <p style={{ margin: '4px 0 0', fontSize: 11, color: COLOR_TEXTO_SEC }}>{item.mensaje}</p>}
+                                <p style={{ margin: '4px 0 0', fontSize: 10, color: COLOR_TEXTO_TERC }}>{new Date(item.created_at).toLocaleString()}</p>
                               </div>
-                              <button onClick={() => dismissNotificacion(item.id)} style={{ background: 'transparent', border: 'none', color: COLOR_TEXTO_SEC, cursor: 'pointer', fontSize: 12, padding: '2px 4px' }}>×</button>
+                              {!item.leida && (
+                                <span style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLOR_ACENTO, flexShrink: 0, marginTop: 4 }} />
+                              )}
                             </div>
                           </div>
                         ))
