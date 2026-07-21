@@ -864,12 +864,12 @@ export default function Home() {
         return;
       }
 
-      // Desactivar push: solo desuscribir este dispositivo, pero conservar
-      // todas las suscripciones guardadas para que funcionen al reactivar
-      await unsubscribePush();
+      // Desactivar push: NO desuscribir del navegador (invalidaría la suscripción
+      // para siempre). Solo guardar notif_push=false. El servidor respeta el flag.
+      // Las suscripciones guardadas siguen válidas y funcionarán al reactivar.
       const { error } = await actualizarPerfil({ notif_push: false });
       if (!error) {
-        addNotificacion({ tipo: 'success', titulo: 'Push desactivado', mensaje: 'No recibirás más alertas push. Al reactivar, tus dispositivos anteriores funcionarán sin volver a dar permiso.' });
+        addNotificacion({ tipo: 'success', titulo: 'Push desactivado', mensaje: 'No recibirás más alertas push. Al reactivar, todos tus dispositivos funcionarán sin volver a dar permiso.' });
       }
       return;
     }
