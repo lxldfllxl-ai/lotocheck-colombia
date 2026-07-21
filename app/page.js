@@ -864,24 +864,12 @@ export default function Home() {
         return;
       }
 
-      // Desactivar push: quitar solo este dispositivo del array
+      // Desactivar push: solo desuscribir este dispositivo, pero conservar
+      // todas las suscripciones guardadas para que funcionen al reactivar
       await unsubscribePush();
-      const subsActuales = Array.isArray(perfil?.push_subscriptions) ? perfil.push_subscriptions : (perfil?.push_subscription_json ? [perfil.push_subscription_json] : []);
-      // Obtener endpoint actual para removerlo del array
-      let endpointActual = null;
-      try {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        endpointActual = sub?.endpoint || null;
-      } catch (_) {}
-      const nuevasSubs = endpointActual ? subsActuales.filter(s => (typeof s === 'object' ? s.endpoint : null) !== endpointActual) : [];
-      const { error } = await actualizarPerfil({
-        notif_push: nuevasSubs.length > 0, // si quedan otros dispositivos, sigue true
-        push_subscriptions: nuevasSubs.length > 0 ? nuevasSubs : null,
-        push_subscription_json: nuevasSubs.length > 0 ? nuevasSubs[0] : null,
-      });
+      const { error } = await actualizarPerfil({ notif_push: false });
       if (!error) {
-        addNotificacion({ tipo: 'success', titulo: 'Push desactivado', mensaje: 'No recibirás más alertas push en este dispositivo.' });
+        addNotificacion({ tipo: 'success', titulo: 'Push desactivado', mensaje: 'No recibirás más alertas push. Al reactivar, tus dispositivos anteriores funcionarán sin volver a dar permiso.' });
       }
       return;
     }
