@@ -261,12 +261,22 @@ function PanelJuegos() {
   const [cargando, setCargando] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [editando, setEditando] = useState(null);
-  const [form, setForm] = useState({ nombre: '', categoria: 'Loteria', tipo: 'loteria', dia_sorteo: '', orden: 99, numero_digits: 4, serie_digits: 3, total_fracciones: 10, tiene_fraccion: true, usa_signo: false, usa_quinta: false, plan_premios: [] });
+  const [form, setForm] = useState(formVacio());
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
-  const categorias = ['Loteria', 'Chance', 'Astro', 'Especiales'];
-  const tipos = ['loteria', 'chance', 'astro', 'quinta', 'chance_millonario'];
+  const categorias = ['Loteria', 'Chance', 'Especiales'];
+  const tipos = ['loteria', 'chance', 'quinta', 'chance_millonario'];
+  const tiposPremio = [
+    { value: 'mayor', label: 'Premio mayor' },
+    { value: 'seco', label: 'Seco' },
+    { value: 'aproximacion', label: 'Aproximacion' },
+    { value: 'especial', label: 'Especial' },
+  ];
+
+  function formVacio() {
+    return { nombre: '', categoria: 'Loteria', tipo: 'loteria', dia_sorteo: '', descripcion: '', orden: 99, numero_digits: 4, serie_digits: 0, total_fracciones: 1, tiene_fraccion: false, usa_signo: false, usa_quinta: false, activo: true, plan_premios: [] };
+  }
 
   useEffect(() => { cargar(); }, []);
 
@@ -278,12 +288,10 @@ function PanelJuegos() {
     setCargando(false);
   }
 
-  function resetForm() {
-    setForm({ nombre: '', categoria: 'Loteria', tipo: 'loteria', dia_sorteo: '', orden: 99, numero_digits: 4, serie_digits: 3, total_fracciones: 10, tiene_fraccion: true, usa_signo: false, usa_quinta: false, plan_premios: [] });
-  }
+  function resetForm() { setForm(formVacio()); }
 
   function agregarPremio() {
-    setForm(f => ({ ...f, plan_premios: [...(f.plan_premios || []), { nombre: '', posicion: (f.plan_premios?.length || 0) + 1, cifras: '', premio: '', descripcion: '' }] }));
+    setForm(f => ({ ...f, plan_premios: [...(f.plan_premios || []), { nombre: '', posicion: (f.plan_premios?.length || 0) + 1, tipo: 'seco', cifras: '', cantidad_ganadores: 1, premio: '', descripcion: '', requiere_serie: false, comparar_serie: false }] }));
   }
 
   function actualizarPremio(idx, campo, valor) {
@@ -295,21 +303,17 @@ function PanelJuegos() {
   }
 
   function eliminarPremio(idx) {
-    setForm(f => {
-      const plan = (f.plan_premios || []).filter((_, i) => i !== idx);
-      return { ...f, plan_premios: plan };
-    });
+    setForm(f => ({ ...f, plan_premios: (f.plan_premios || []).filter((_, i) => i !== idx) }));
   }
 
   async function guardar() {
     setError(null); setGuardando(true);
     if (!form.nombre.trim()) { setError('El nombre es obligatorio.'); setGuardando(false); return; }
 
-    const url = '/api/admin/juegos';
     const method = editando ? 'PUT' : 'POST';
     const body = editando ? { id: editando.id, ...form } : form;
 
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await fetch('/api/admin/juegos', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await res.json();
 
     if (!res.ok) { setError(data.error || 'Error al guardar.'); }
@@ -318,7 +322,7 @@ function PanelJuegos() {
   }
 
   async function toggleActivo(juego) {
-    await fetch('/api/admin/juegos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...juego, activo: !juego.activo }) });
+    await fetch('/api/admin/juegos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: juego.id, activo: !juego.activo }) });
     await cargar();
   }
 
@@ -331,12 +335,30 @@ function PanelJuegos() {
   function iniciarEdicion(juego) {
     setEditando(juego);
     setForm({
-      nombre: juego.nombre, categoria: juego.categoria, tipo: juego.tipo || 'loteria',
-      dia_sorteo: juego.dia_sorteo || '', orden: juego.orden || 99,
-      numero_digits: juego.numero_digits || 4, serie_digits: juego.serie_digits || 0,
+      nombre: juego.nombre || '',
+      categoria: ['Loteria', 'Chance', 'Especiales'].includes(juego.categoria) ? juego.categoria : 'Loteria',
+      tipo: juego.tipo || 'loteria',
+      dia_sorteo: juego.dia_sorteo || '',
+      descripcion: juego.descripcion || '',
+      orden: juego.orden || 99,
+      numero_digits: juego.numero_digits || 4,
+      serie_digits: juego.serie_digits || 0,
       total_fracciones: juego.total_fracciones || 1,
-      tiene_fraccion: juego.tiene_fraccion ?? false, usa_signo: juego.usa_signo ?? false, usa_quinta: juego.usa_quinta ?? false,
-      plan_premios: Array.isArray(juego.plan_premios) ? juego.plan_premios : [],
+      tiene_fraccion: juego.tiene_fraccion ?? false,
+      usa_signo: juego.usa_signo ?? false,
+      usa_quinta: juego.usa_quinta ?? false,
+      activo: juego.activo ?? true,
+      plan_premios: Array.isArray(juego.plan_premios) ? juego.plan_premios.map(p => ({
+        nombre: p.nombre || '',
+        posicion: p.posicion || 1,
+        tipo: p.tipo || 'seco',
+        cifras: p.cifras ?? '',
+        cantidad_ganadores: p.cantidad_ganadores ?? 1,
+        premio: p.premio || '',
+        descripcion: p.descripcion || '',
+        requiere_serie: p.requiere_serie ?? false,
+        comparar_serie: p.comparar_serie ?? false,
+      })) : [],
     });
     setMostrarForm(true);
   }
@@ -365,25 +387,30 @@ function PanelJuegos() {
       {mostrarForm && (
         <div style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 16, padding: 20, marginBottom: 20 }}>
           <p style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 16 }}>{editando ? 'Editar juego' : 'Nuevo juego'}</p>
+
+          {/* Datos basicos */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
-            <div><span style={labelStyle}>Nombre</span><input type="text" placeholder="Ej: Colorloto" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} style={inputStyle} /></div>
+            <div><span style={labelStyle}>Nombre</span><input type="text" placeholder="Ej: Loteria de Bogota" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} style={inputStyle} /></div>
             <div><span style={labelStyle}>Categoria</span><select value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })} style={inputStyle}>{categorias.map(c => <option key={c} style={{ backgroundColor: '#0A0A0A' }}>{c}</option>)}</select></div>
             <div><span style={labelStyle}>Tipo de juego</span><select value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })} style={inputStyle}>{tipos.map(t => <option key={t} value={t} style={{ backgroundColor: '#0A0A0A' }}>{t}</option>)}</select></div>
-            <div><span style={labelStyle}>Dia de sorteo</span><input type="text" placeholder="Ej: Sabado" value={form.dia_sorteo} onChange={e => setForm({ ...form, dia_sorteo: e.target.value })} style={inputStyle} /></div>
-            <div><span style={labelStyle}>Digitos del numero</span><input type="number" min="1" value={form.numero_digits} onChange={e => setForm({ ...form, numero_digits: parseInt(e.target.value) })} style={inputStyle} /></div>
-            <div><span style={labelStyle}>Digitos de la serie (0 si no aplica)</span><input type="number" min="0" value={form.serie_digits} onChange={e => setForm({ ...form, serie_digits: parseInt(e.target.value) })} style={inputStyle} /></div>
-            <div><span style={labelStyle}>Total fracciones (1-10)</span><input type="number" min="1" max="10" value={form.total_fracciones} onChange={e => setForm({ ...form, total_fracciones: parseInt(e.target.value) })} style={inputStyle} /></div>
-            <div><span style={labelStyle}>Orden (menor = primero)</span><input type="number" min="1" value={form.orden} onChange={e => setForm({ ...form, orden: parseInt(e.target.value) })} style={inputStyle} /></div>
+            <div><span style={labelStyle}>Dia y hora del sorteo</span><input type="text" placeholder="Ej: Viernes a las 11:00 P.M." value={form.dia_sorteo} onChange={e => setForm({ ...form, dia_sorteo: e.target.value })} style={inputStyle} /></div>
+            <div><span style={labelStyle}>Digitos del numero</span><input type="number" min="1" max="6" value={form.numero_digits} onChange={e => setForm({ ...form, numero_digits: parseInt(e.target.value) || 0 })} style={inputStyle} /></div>
+            <div><span style={labelStyle}>Digitos de la serie (0 si no tiene)</span><input type="number" min="0" max="4" value={form.serie_digits} onChange={e => setForm({ ...form, serie_digits: parseInt(e.target.value) || 0 })} style={inputStyle} /></div>
+            <div><span style={labelStyle}>Fracciones (1 si no tiene)</span><input type="number" min="1" max="100" value={form.total_fracciones} onChange={e => setForm({ ...form, total_fracciones: parseInt(e.target.value) || 1 })} style={inputStyle} /></div>
+            <div><span style={labelStyle}>Orden (menor = primero)</span><input type="number" min="1" value={form.orden} onChange={e => setForm({ ...form, orden: parseInt(e.target.value) || 99 })} style={inputStyle} /></div>
+            <div style={{ gridColumn: '1 / -1' }}><span style={labelStyle}>Descripcion breve</span><input type="text" placeholder="Ej: Loteria tradicional de 4 cifras" value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} style={inputStyle} /></div>
           </div>
 
+          {/* Toggles */}
           <div style={{ display: 'flex', gap: 20, marginBottom: 16, flexWrap: 'wrap' }}>
             {[
               { key: 'tiene_fraccion', label: 'Tiene fracciones' },
-              { key: 'usa_signo', label: 'Usa signo zodiacal' },
-              { key: 'usa_quinta', label: 'Usa quinta' },
+              { key: 'usa_signo', label: 'Tiene signo zodiacal' },
+              { key: 'usa_quinta', label: 'Tiene quinta' },
+              { key: 'activo', label: 'Activo' },
             ].map(({ key, label }) => (
               <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#888', fontSize: 13, cursor: 'pointer' }}>
-                <input type="checkbox" checked={form[key]} onChange={e => setForm({ ...form, [key]: e.target.checked })} /> {label}
+                <input type="checkbox" checked={!!form[key]} onChange={e => setForm({ ...form, [key]: e.target.checked })} /> {label}
               </label>
             ))}
           </div>
@@ -393,14 +420,14 @@ function PanelJuegos() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div>
                 <p style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Plan de premios</p>
-                <p style={{ color: '#555', fontSize: 12, marginTop: 2 }}>Define los premios y como se verifican los boletos ganadores.</p>
+                <p style={{ color: '#555', fontSize: 12, marginTop: 2 }}>Define cada premio: nombre, cantidad de numeros ganadores, monto y como se verifica.</p>
               </div>
               <button onClick={agregarPremio} style={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Plus size={13} /> Premio
               </button>
             </div>
             {(form.plan_premios || []).length === 0 && (
-              <p style={{ color: '#444', fontSize: 12, fontStyle: 'italic' }}>Sin premios definidos. Se usaran los valores por defecto.</p>
+              <p style={{ color: '#444', fontSize: 12, fontStyle: 'italic' }}>Sin premios definidos.</p>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {(form.plan_premios || []).map((p, idx) => (
@@ -411,12 +438,21 @@ function PanelJuegos() {
                       <X size={12} />
                     </button>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
-                    <div><span style={labelStyle}>Nombre</span><input type="text" placeholder="Ej: Premio Mayor" value={p.nombre} onChange={e => actualizarPremio(idx, 'nombre', e.target.value)} style={inputStyle} /></div>
-                    <div><span style={labelStyle}>Posicion</span><input type="number" min="1" placeholder="1" value={p.posicion ?? ''} onChange={e => actualizarPremio(idx, 'posicion', e.target.value)} style={inputStyle} /></div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
+                    <div><span style={labelStyle}>Nombre</span><input type="text" placeholder="Ej: Premio mayor" value={p.nombre} onChange={e => actualizarPremio(idx, 'nombre', e.target.value)} style={inputStyle} /></div>
+                    <div><span style={labelStyle}>Tipo</span><select value={p.tipo} onChange={e => actualizarPremio(idx, 'tipo', e.target.value)} style={inputStyle}>{tiposPremio.map(t => <option key={t.value} value={t.value} style={{ backgroundColor: '#0A0A0A' }}>{t.label}</option>)}</select></div>
+                    <div><span style={labelStyle}>Cantidad (numeros ganadores)</span><input type="number" min="1" placeholder="2" value={p.cantidad_ganadores ?? ''} onChange={e => actualizarPremio(idx, 'cantidad_ganadores', e.target.value)} style={inputStyle} /></div>
+                    <div><span style={labelStyle}>Premio (monto)</span><input type="text" placeholder="Ej: $16.000.000.000" value={p.premio} onChange={e => actualizarPremio(idx, 'premio', e.target.value)} style={inputStyle} /></div>
                     <div><span style={labelStyle}>Cifras a comparar</span><input type="number" min="1" max="6" placeholder="4" value={p.cifras ?? ''} onChange={e => actualizarPremio(idx, 'cifras', e.target.value)} style={inputStyle} /></div>
-                    <div><span style={labelStyle}>Premio</span><input type="text" placeholder="Ej: $15.000.000.000" value={p.premio} onChange={e => actualizarPremio(idx, 'premio', e.target.value)} style={inputStyle} /></div>
                     <div style={{ gridColumn: '1 / -1' }}><span style={labelStyle}>Descripcion</span><input type="text" placeholder="Ej: 4 cifras + serie exacta" value={p.descripcion} onChange={e => actualizarPremio(idx, 'descripcion', e.target.value)} style={inputStyle} /></div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 20, marginTop: 8, flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#888', fontSize: 12, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={!!p.requiere_serie} onChange={e => actualizarPremio(idx, 'requiere_serie', e.target.checked)} /> Requiere serie
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#888', fontSize: 12, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={!!p.comparar_serie} onChange={e => actualizarPremio(idx, 'comparar_serie', e.target.checked)} /> Comparar serie exacta
+                    </label>
                   </div>
                 </div>
               ))}
@@ -442,8 +478,11 @@ function PanelJuegos() {
                     <div style={{ flex: 1, minWidth: 140 }}>
                       <p style={{ color: j.activo ? '#E0E0E0' : '#555', fontSize: 14, fontWeight: 600 }}>{j.nombre}</p>
                       <p style={{ color: '#444', fontSize: 12, marginTop: 2 }}>
-                        {j.dia_sorteo && `${j.dia_sorteo} · `}{j.tipo}{j.tiene_fraccion && ` · ${j.total_fracciones || 1} fracciones`}
+                        {j.dia_sorteo && `${j.dia_sorteo} · `}{j.numero_digits || 4} cifras{j.serie_digits > 0 ? ` + ${j.serie_digits} serie` : ''}{j.tiene_fraccion && ` · ${j.total_fracciones || 1} fracciones`}
                       </p>
+                      {Array.isArray(j.plan_premios) && j.plan_premios.length > 0 && (
+                        <p style={{ color: '#555', fontSize: 11, marginTop: 2 }}>{j.plan_premios.length} premio{j.plan_premios.length !== 1 ? 's' : ''} en el plan</p>
+                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <button onClick={() => toggleActivo(j)} style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20, border: 'none', cursor: 'pointer', backgroundColor: j.activo ? '#0d1f0d' : '#2A2A2A', color: j.activo ? '#4ade80' : '#555' }}>
@@ -473,6 +512,7 @@ function PanelResultados() {
   const [cargando, setCargando] = useState(true);
   const [expandido, setExpandido] = useState(null);
   const [resultados, setResultados] = useState({});
+  const [modos, setModos] = useState({}); // { [juegoId]: 'simple' | 'tier' }
   const [guardando, setGuardando] = useState(null);
   const [mensaje, setMensaje] = useState({});
   const [testEmail, setTestEmail] = useState('');
@@ -492,6 +532,7 @@ function PanelResultados() {
     const existentes = dataResultados.resultados || [];
 
     const init = {};
+    const modosInit = {};
     activos.forEach(j => {
       const ex = existentes.find(r => r.loteria === j.nombre);
       // Inicializar premios desde plan_premios del juego
@@ -502,7 +543,7 @@ function PanelResultados() {
         tipo: p.tipo || 'seco',
         cifras: p.cifras || 0,
         premio: p.premio || '',
-        ganadores: [{ numero: '', serie: '', premio: p.premio || '' }],
+        ganadores: Array.from({ length: p.cantidad_ganadores || 1 }, () => ({ numero: '', serie: '', premio: p.premio || '' })),
       }));
       // Si hay premios_json guardados, usarlos
       if (ex?.premios_json && Array.isArray(ex.premios_json) && ex.premios_json.length > 0) {
@@ -520,6 +561,7 @@ function PanelResultados() {
           signo: ex?.signo || '', quinta: ex?.quinta || '',
           premios: premiosGuardados,
         };
+        modosInit[j.id] = 'tier';
       } else {
         init[j.id] = {
           numero: ex?.numero || '', serie: ex?.serie || '', premio: ex?.premio || '',
@@ -527,9 +569,11 @@ function PanelResultados() {
           signo: ex?.signo || '', quinta: ex?.quinta || '',
           premios: premiosInit,
         };
+        modosInit[j.id] = premiosInit.length > 0 ? 'tier' : 'simple';
       }
     });
     setResultados(init);
+    setModos(modosInit);
     setCargando(false);
   }
 
@@ -575,10 +619,11 @@ function PanelResultados() {
   async function guardarResultado(juego) {
     setGuardando(juego.id); setMensaje(prev => ({ ...prev, [juego.id]: null }));
     const r = resultados[juego.id];
+    const modo = modos[juego.id] || 'simple';
     if (!r.numero) { setMensaje(prev => ({ ...prev, [juego.id]: { tipo: 'error', texto: 'El numero es obligatorio.' } })); setGuardando(null); return; }
 
-    // Construir premios para enviar
-    const premiosParaEnviar = (r.premios || []).map(p => ({
+    // Construir premios para enviar (solo en modo tier)
+    const premiosParaEnviar = modo === 'tier' ? (r.premios || []).map(p => ({
       tier_nombre: p.tier_nombre,
       tier_posicion: p.tier_posicion,
       tipo: p.tipo,
@@ -588,7 +633,7 @@ function PanelResultados() {
         serie: (g.serie || '').toUpperCase(),
         premio: g.premio || p.premio || '',
       })),
-    })).filter(p => p.ganadores.length > 0);
+    })).filter(p => p.ganadores.length > 0) : [];
 
     const res = await fetch('/api/admin/resultados', {
       method: 'POST',
@@ -708,7 +753,7 @@ function PanelResultados() {
   return (
     <div>
       <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Actualizar resultados</p>
-      <p style={{ color: '#555', fontSize: 13, marginBottom: 24 }}>Toca un juego para abrir y registrar el resultado del sorteo. Cada tier de premio puede tener múltiples ganadores. Las notificaciones se enviarán automáticamente.</p>
+      <p style={{ color: '#555', fontSize: 13, marginBottom: 24 }}>Toca un juego para abrir y registrar el resultado del sorteo. Cada juego puede usar <strong style={{ color: '#888' }}>modo simple</strong> (numero mayor + secos) o <strong style={{ color: '#888' }}>modo por tiers</strong> (multiples ganadores por premio del plan). Las notificaciones se envian automaticamente.</p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 24, alignItems: 'end' }}>
         <div>
           <label style={{ display: 'block', color: '#AAA', fontSize: 12, marginBottom: 6 }}>Correo de prueba</label>
@@ -755,8 +800,27 @@ function PanelResultados() {
                           <div><span style={labelStyle}>Fecha</span><input type="date" value={r.fecha} onChange={e => actualizarCampo(j.id, 'fecha', e.target.value)} style={{ ...inputStyle, colorScheme: 'dark' }} /></div>
                         </div>
 
-                        {/* Tiers de premios dinámicos */}
-                        {j.tipo === 'loteria' && premios.length > 0 && (
+                        {/* Selector de modo: simple | tier */}
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 16, backgroundColor: '#0A0A0A', border: '1px solid #2A2A2A', borderRadius: 10, padding: 4 }}>
+                          <button onClick={() => setModos(prev => ({ ...prev, [j.id]: 'simple' }))} style={{ flex: 1, background: (modos[j.id] || 'simple') === 'simple' ? '#C41230' : 'transparent', border: 'none', borderRadius: 8, padding: '8px 12px', color: (modos[j.id] || 'simple') === 'simple' ? '#fff' : '#888', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                            Modo simple
+                          </button>
+                          <button onClick={() => setModos(prev => ({ ...prev, [j.id]: 'tier' }))} disabled={premios.length === 0} style={{ flex: 1, background: modos[j.id] === 'tier' ? '#C41230' : 'transparent', border: 'none', borderRadius: 8, padding: '8px 12px', color: modos[j.id] === 'tier' ? '#fff' : (premios.length === 0 ? '#444' : '#888'), fontSize: 12, fontWeight: 600, cursor: premios.length === 0 ? 'not-allowed' : 'pointer' }} title={premios.length === 0 ? 'El juego no tiene plan de premios' : ''}>
+                            Modo por tiers
+                          </button>
+                        </div>
+
+                        {/* MODO SIMPLE: numero mayor + secos */}
+                        {(modos[j.id] || 'simple') === 'simple' && (
+                          <div style={{ marginBottom: 14 }}>
+                            <span style={labelStyle}>Secos / numeros sueltos (separados por coma)</span>
+                            <input type="text" placeholder="Ej: 821, 21, 1, 4592" value={r.secos} onChange={e => actualizarCampo(j.id, 'secos', e.target.value)} style={inputStyle} />
+                            <p style={{ color: '#444', fontSize: 11, marginTop: 6 }}>Registra el numero mayor arriba y los secos aqui. Ideal para resultados rapidos.</p>
+                          </div>
+                        )}
+
+                        {/* MODO TIER: premios por tier con multiples ganadores */}
+                        {modos[j.id] === 'tier' && premios.length > 0 && (
                           <div style={{ marginBottom: 18 }}>
                             <p style={{ color: '#888', fontSize: 12, fontWeight: 600, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Premios por tier</p>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -769,7 +833,7 @@ function PanelResultados() {
                                   </div>
                                   {(tier.ganadores || []).map((g, gIdx) => (
                                     <div key={gIdx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                                      <input type="text" placeholder="Número" maxLength={j.numero_digits || 4} value={g.numero} onChange={e => actualizarGanador(j.id, tierIdx, gIdx, 'numero', e.target.value)} style={{ ...inputStyle, width: 100 }} />
+                                      <input type="text" placeholder="Numero" maxLength={j.numero_digits || 4} value={g.numero} onChange={e => actualizarGanador(j.id, tierIdx, gIdx, 'numero', e.target.value)} style={{ ...inputStyle, width: 100 }} />
                                       {j.serie_digits > 0 && <input type="text" placeholder="Serie" value={g.serie} onChange={e => actualizarGanador(j.id, tierIdx, gIdx, 'serie', e.target.value)} style={{ ...inputStyle, width: 80 }} />}
                                       <input type="text" placeholder="Premio" value={g.premio} onChange={e => actualizarGanador(j.id, tierIdx, gIdx, 'premio', e.target.value)} style={{ ...inputStyle, flex: 1 }} />
                                       {(tier.ganadores || []).length > 1 && (
@@ -784,11 +848,6 @@ function PanelResultados() {
                               ))}
                             </div>
                           </div>
-                        )}
-
-                        {/* Legacy: secos para juegos sin plan_premios */}
-                        {j.tipo === 'loteria' && premios.length === 0 && (
-                          <div style={{ marginBottom: 14 }}><span style={labelStyle}>Secos (separados por coma)</span><input type="text" placeholder="821, 21, 1" value={r.secos} onChange={e => actualizarCampo(j.id, 'secos', e.target.value)} style={inputStyle} /></div>
                         )}
 
                         {mensaje[j.id] && <div style={{ backgroundColor: mensaje[j.id].tipo === 'ok' ? '#0d1f0d' : '#1E0000', border: `1px solid ${mensaje[j.id].tipo === 'ok' ? '#1a3a1a' : '#3A0000'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}><p style={{ color: mensaje[j.id].tipo === 'ok' ? '#4ade80' : '#ff6b6b', fontSize: 13 }}>{mensaje[j.id].texto}</p></div>}

@@ -25,6 +25,7 @@ export async function POST(request) {
       categoria: datos.categoria,
       tipo: datos.tipo || 'loteria',
       dia_sorteo: datos.dia_sorteo || '',
+      descripcion: datos.descripcion || '',
       orden: parseInt(datos.orden) || 99,
       numero_digits: parseInt(datos.numero_digits) || 4,
       serie_digits: parseInt(datos.serie_digits) || 0,
@@ -33,7 +34,17 @@ export async function POST(request) {
       usa_signo: datos.usa_signo ?? false,
       usa_quinta: datos.usa_quinta ?? false,
       activo: true,
-      plan_premios: Array.isArray(datos.plan_premios) ? datos.plan_premios : null,
+      plan_premios: Array.isArray(datos.plan_premios) ? datos.plan_premios.map((p, i) => ({
+        nombre: p.nombre,
+        posicion: p.posicion !== undefined && p.posicion !== '' ? parseInt(p.posicion) : i + 1,
+        tipo: p.tipo || 'seco',
+        cifras: p.cifras !== undefined && p.cifras !== '' ? parseInt(p.cifras) : null,
+        cantidad_ganadores: parseInt(p.cantidad_ganadores) || 1,
+        premio: p.premio || '',
+        descripcion: p.descripcion || '',
+        requiere_serie: p.requiere_serie ?? false,
+        comparar_serie: p.comparar_serie ?? false,
+      })) : null,
     }).select().single();
 
     if (error) {
@@ -58,12 +69,16 @@ export async function PUT(request) {
     if (update.serie_digits !== undefined) update.serie_digits = parseInt(update.serie_digits);
     if (update.total_fracciones !== undefined) update.total_fracciones = parseInt(update.total_fracciones);
     if (Array.isArray(update.plan_premios)) {
-      update.plan_premios = update.plan_premios.map(p => ({
+      update.plan_premios = update.plan_premios.map((p, i) => ({
         nombre: p.nombre,
-        posicion: p.posicion !== undefined && p.posicion !== '' ? parseInt(p.posicion) : null,
+        posicion: p.posicion !== undefined && p.posicion !== '' ? parseInt(p.posicion) : i + 1,
+        tipo: p.tipo || 'seco',
         cifras: p.cifras !== undefined && p.cifras !== '' ? parseInt(p.cifras) : null,
+        cantidad_ganadores: parseInt(p.cantidad_ganadores) || 1,
         premio: p.premio || '',
         descripcion: p.descripcion || '',
+        requiere_serie: p.requiere_serie ?? false,
+        comparar_serie: p.comparar_serie ?? false,
       }));
     }
 
