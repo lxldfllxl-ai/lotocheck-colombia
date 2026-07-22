@@ -261,7 +261,7 @@ function PanelJuegos() {
   const [cargando, setCargando] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [editando, setEditando] = useState(null);
-  const [form, setForm] = useState({ nombre: '', categoria: 'Loteria', tipo: 'loteria', dia_sorteo: '', orden: 99, numero_digits: 4, serie_digits: 3, total_fracciones: 10, tiene_fraccion: true, usa_signo: false, usa_quinta: false });
+  const [form, setForm] = useState({ nombre: '', categoria: 'Loteria', tipo: 'loteria', dia_sorteo: '', orden: 99, numero_digits: 4, serie_digits: 3, total_fracciones: 10, tiene_fraccion: true, usa_signo: false, usa_quinta: false, plan_premios: [] });
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -279,7 +279,26 @@ function PanelJuegos() {
   }
 
   function resetForm() {
-    setForm({ nombre: '', categoria: 'Loteria', tipo: 'loteria', dia_sorteo: '', orden: 99, numero_digits: 4, serie_digits: 3, total_fracciones: 10, tiene_fraccion: true, usa_signo: false, usa_quinta: false });
+    setForm({ nombre: '', categoria: 'Loteria', tipo: 'loteria', dia_sorteo: '', orden: 99, numero_digits: 4, serie_digits: 3, total_fracciones: 10, tiene_fraccion: true, usa_signo: false, usa_quinta: false, plan_premios: [] });
+  }
+
+  function agregarPremio() {
+    setForm(f => ({ ...f, plan_premios: [...(f.plan_premios || []), { nombre: '', posicion: (f.plan_premios?.length || 0) + 1, cifras: '', premio: '', descripcion: '' }] }));
+  }
+
+  function actualizarPremio(idx, campo, valor) {
+    setForm(f => {
+      const plan = [...(f.plan_premios || [])];
+      plan[idx] = { ...plan[idx], [campo]: valor };
+      return { ...f, plan_premios: plan };
+    });
+  }
+
+  function eliminarPremio(idx) {
+    setForm(f => {
+      const plan = (f.plan_premios || []).filter((_, i) => i !== idx);
+      return { ...f, plan_premios: plan };
+    });
   }
 
   async function guardar() {
@@ -317,6 +336,7 @@ function PanelJuegos() {
       numero_digits: juego.numero_digits || 4, serie_digits: juego.serie_digits || 0,
       total_fracciones: juego.total_fracciones || 1,
       tiene_fraccion: juego.tiene_fraccion ?? false, usa_signo: juego.usa_signo ?? false, usa_quinta: juego.usa_quinta ?? false,
+      plan_premios: Array.isArray(juego.plan_premios) ? juego.plan_premios : [],
     });
     setMostrarForm(true);
   }
@@ -366,6 +386,41 @@ function PanelJuegos() {
                 <input type="checkbox" checked={form[key]} onChange={e => setForm({ ...form, [key]: e.target.checked })} /> {label}
               </label>
             ))}
+          </div>
+
+          {/* Plan de premios */}
+          <div style={{ backgroundColor: '#0F0F0F', border: '1px solid #2A2A2A', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div>
+                <p style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Plan de premios</p>
+                <p style={{ color: '#555', fontSize: 12, marginTop: 2 }}>Define los premios y como se verifican los boletos ganadores.</p>
+              </div>
+              <button onClick={agregarPremio} style={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Plus size={13} /> Premio
+              </button>
+            </div>
+            {(form.plan_premios || []).length === 0 && (
+              <p style={{ color: '#444', fontSize: 12, fontStyle: 'italic' }}>Sin premios definidos. Se usaran los valores por defecto.</p>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {(form.plan_premios || []).map((p, idx) => (
+                <div key={idx} style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 10, padding: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ color: '#888', fontSize: 12, fontWeight: 600 }}>Premio #{idx + 1}</span>
+                    <button onClick={() => eliminarPremio(idx)} style={{ background: '#2A0000', border: '1px solid #3A0000', borderRadius: 6, padding: '4px 8px', color: '#ff6b6b', cursor: 'pointer' }}>
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
+                    <div><span style={labelStyle}>Nombre</span><input type="text" placeholder="Ej: Premio Mayor" value={p.nombre} onChange={e => actualizarPremio(idx, 'nombre', e.target.value)} style={inputStyle} /></div>
+                    <div><span style={labelStyle}>Posicion</span><input type="number" min="1" placeholder="1" value={p.posicion ?? ''} onChange={e => actualizarPremio(idx, 'posicion', e.target.value)} style={inputStyle} /></div>
+                    <div><span style={labelStyle}>Cifras a comparar</span><input type="number" min="1" max="6" placeholder="4" value={p.cifras ?? ''} onChange={e => actualizarPremio(idx, 'cifras', e.target.value)} style={inputStyle} /></div>
+                    <div><span style={labelStyle}>Premio</span><input type="text" placeholder="Ej: $15.000.000.000" value={p.premio} onChange={e => actualizarPremio(idx, 'premio', e.target.value)} style={inputStyle} /></div>
+                    <div style={{ gridColumn: '1 / -1' }}><span style={labelStyle}>Descripcion</span><input type="text" placeholder="Ej: 4 cifras + serie exacta" value={p.descripcion} onChange={e => actualizarPremio(idx, 'descripcion', e.target.value)} style={inputStyle} /></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {error && <div style={{ backgroundColor: '#1E0000', border: '1px solid #3A0000', borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}><p style={{ color: '#ff6b6b', fontSize: 13 }}>{error}</p></div>}

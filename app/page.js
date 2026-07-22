@@ -409,6 +409,7 @@ export default function Home() {
       tipoJuego: juegoSeleccionado.tipo,
       numeroDigits: juegoSeleccionado.numero_digits,
       resultadosReales,
+      planPremios: juegoSeleccionado.plan_premios,
     });
 
     setVerificando(false);
@@ -482,6 +483,7 @@ export default function Home() {
       tipoJuego: juegoSeleccionado.tipo,
       numeroDigits: juegoSeleccionado.numero_digits,
       resultadosReales,
+      planPremios: juegoSeleccionado.plan_premios,
     });
 
     setVerificando(false);

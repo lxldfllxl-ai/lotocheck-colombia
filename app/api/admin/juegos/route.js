@@ -33,6 +33,7 @@ export async function POST(request) {
       usa_signo: datos.usa_signo ?? false,
       usa_quinta: datos.usa_quinta ?? false,
       activo: true,
+      plan_premios: Array.isArray(datos.plan_premios) ? datos.plan_premios : null,
     }).select().single();
 
     if (error) {
@@ -56,6 +57,15 @@ export async function PUT(request) {
     if (update.numero_digits !== undefined) update.numero_digits = parseInt(update.numero_digits);
     if (update.serie_digits !== undefined) update.serie_digits = parseInt(update.serie_digits);
     if (update.total_fracciones !== undefined) update.total_fracciones = parseInt(update.total_fracciones);
+    if (Array.isArray(update.plan_premios)) {
+      update.plan_premios = update.plan_premios.map(p => ({
+        nombre: p.nombre,
+        posicion: p.posicion !== undefined && p.posicion !== '' ? parseInt(p.posicion) : null,
+        cifras: p.cifras !== undefined && p.cifras !== '' ? parseInt(p.cifras) : null,
+        premio: p.premio || '',
+        descripcion: p.descripcion || '',
+      }));
+    }
 
     const { data, error } = await supabaseAdmin.from('juegos').update(update).eq('id', id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
