@@ -20,7 +20,7 @@ export async function GET() {
     if (error) throw error;
 
     if (!data || data.length === 0) {
-      return NextResponse.json(RESPALDO.map(r => ({ ...r, dia: r.dia })));
+      return NextResponse.json(RESPALDO.map(r => ({ ...r, premios_json: [], premio_mayor: null, dia: r.dia })));
     }
 
     const formateados = data.map(r => ({
@@ -29,6 +29,8 @@ export async function GET() {
       serie: r.serie,
       premio: r.premio,
       secos: r.secos || [],
+      premios_json: r.premios_json || [],
+      premio_mayor: r.premio_mayor || null,
       fecha: r.fecha,
       dia: r.fecha,
       signo: r.signo,
@@ -38,6 +40,6 @@ export async function GET() {
     return NextResponse.json(formateados);
   } catch (err) {
     console.error('Error cargando resultados, usando respaldo:', err.message);
-    return NextResponse.json(RESPALDO);
+    return NextResponse.json(RESPALDO.map(r => ({ ...r, premios_json: [], premio_mayor: null })));
   }
 }

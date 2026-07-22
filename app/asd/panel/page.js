@@ -494,7 +494,40 @@ function PanelResultados() {
     const init = {};
     activos.forEach(j => {
       const ex = existentes.find(r => r.loteria === j.nombre);
-      init[j.id] = { numero: ex?.numero || '', serie: ex?.serie || '', premio: ex?.premio || '', fecha: ex?.fecha || '', secos: (ex?.secos || []).join(', '), signo: ex?.signo || '', quinta: ex?.quinta || '' };
+      // Inicializar premios desde plan_premios del juego
+      const plan = Array.isArray(j.plan_premios) ? j.plan_premios : [];
+      const premiosInit = plan.map(p => ({
+        tier_nombre: p.nombre || '',
+        tier_posicion: p.posicion || 1,
+        tipo: p.tipo || 'seco',
+        cifras: p.cifras || 0,
+        premio: p.premio || '',
+        ganadores: [{ numero: '', serie: '', premio: p.premio || '' }],
+      }));
+      // Si hay premios_json guardados, usarlos
+      if (ex?.premios_json && Array.isArray(ex.premios_json) && ex.premios_json.length > 0) {
+        const premiosGuardados = ex.premios_json.map(p => ({
+          tier_nombre: p.nombre || '',
+          tier_posicion: p.posicion || 1,
+          tipo: p.tipo || 'seco',
+          cifras: p.cifras || 0,
+          premio: p.ganadores?.[0]?.premio || '',
+          ganadores: (p.ganadores || []).map(g => ({ numero: g.numero || '', serie: g.serie || '', premio: g.premio || '' })),
+        }));
+        init[j.id] = {
+          numero: ex?.numero || '', serie: ex?.serie || '', premio: ex?.premio || '',
+          fecha: ex?.fecha || '', secos: (ex?.secos || []).join(', '),
+          signo: ex?.signo || '', quinta: ex?.quinta || '',
+          premios: premiosGuardados,
+        };
+      } else {
+        init[j.id] = {
+          numero: ex?.numero || '', serie: ex?.serie || '', premio: ex?.premio || '',
+          fecha: ex?.fecha || '', secos: (ex?.secos || []).join(', '),
+          signo: ex?.signo || '', quinta: ex?.quinta || '',
+          premios: premiosInit,
+        };
+      }
     });
     setResultados(init);
     setCargando(false);
@@ -504,10 +537,58 @@ function PanelResultados() {
     setResultados(prev => ({ ...prev, [juegoId]: { ...prev[juegoId], [campo]: valor } }));
   }
 
+  function actualizarGanador(juegoId, tierIdx, ganadorIdx, campo, valor) {
+    setResultados(prev => {
+      const premios = [...(prev[juegoId]?.premios || [])];
+      if (!premios[tierIdx]) return prev;
+      const ganadores = [...(premios[tierIdx].ganadores || [])];
+      if (!ganadores[ganadorIdx]) return prev;
+      ganadores[ganadorIdx] = { ...ganadores[ganadorIdx], [campo]: valor };
+      premios[tierIdx] = { ...premios[tierIdx], ganadores };
+      return { ...prev, [juegoId]: { ...prev[juegoId], premios } };
+    });
+  }
+
+  function agregarGanador(juegoId, tierIdx) {
+    setResultados(prev => {
+      const premios = [...(prev[juegoId]?.premios || [])];
+      if (!premios[tierIdx]) return prev;
+      const ganadores = [...(premios[tierIdx].ganadores || [])];
+      ganadores.push({ numero: '', serie: '', premio: premios[tierIdx].premio || '' });
+      premios[tierIdx] = { ...premios[tierIdx], ganadores };
+      return { ...prev, [juegoId]: { ...prev[juegoId], premios } };
+    });
+  }
+
+  function quitarGanador(juegoId, tierIdx, ganadorIdx) {
+    setResultados(prev => {
+      const premios = [...(prev[juegoId]?.premios || [])];
+      if (!premios[tierIdx]) return prev;
+      const ganadores = [...(premios[tierIdx].ganadores || [])];
+      if (ganadores.length <= 1) return prev; // mantener al menos 1
+      ganadores.splice(ganadorIdx, 1);
+      premios[tierIdx] = { ...premios[tierIdx], ganadores };
+      return { ...prev, [juegoId]: { ...prev[juegoId], premios } };
+    });
+  }
+
   async function guardarResultado(juego) {
     setGuardando(juego.id); setMensaje(prev => ({ ...prev, [juego.id]: null }));
     const r = resultados[juego.id];
     if (!r.numero) { setMensaje(prev => ({ ...prev, [juego.id]: { tipo: 'error', texto: 'El numero es obligatorio.' } })); setGuardando(null); return; }
+
+    // Construir premios para enviar
+    const premiosParaEnviar = (r.premios || []).map(p => ({
+      tier_nombre: p.tier_nombre,
+      tier_posicion: p.tier_posicion,
+      tipo: p.tipo,
+      cifras: p.cifras,
+      ganadores: (p.ganadores || []).filter(g => g.numero.trim()).map(g => ({
+        numero: g.numero.trim().padStart(juego.numero_digits || 4, '0'),
+        serie: (g.serie || '').toUpperCase(),
+        premio: g.premio || p.premio || '',
+      })),
+    })).filter(p => p.ganadores.length > 0);
 
     const res = await fetch('/api/admin/resultados', {
       method: 'POST',
@@ -518,6 +599,7 @@ function PanelResultados() {
         serie: (r.serie || '').toUpperCase(),
         premio: r.premio, fecha: r.fecha,
         secos: r.secos.split(',').map(s => s.trim()).filter(Boolean),
+        premios: premiosParaEnviar,
         signo: r.signo, quinta: r.quinta,
       }),
     });
@@ -619,13 +701,14 @@ function PanelResultados() {
 
   const inputStyle = { width: '100%', backgroundColor: '#0A0A0A', border: '1px solid #2A2A2A', borderRadius: 10, padding: '10px 12px', fontSize: 14, color: '#E0E0E0', outline: 'none' };
   const labelStyle = { fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block' };
+  const tierColors = { mayor: '#C41230', seco: '#F59E0B', aproximacion: '#10B981', especial: '#8B5CF6' };
 
   if (cargando) return <p style={{ color: '#555' }}>Cargando juegos...</p>;
 
   return (
     <div>
       <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Actualizar resultados</p>
-      <p style={{ color: '#555', fontSize: 13, marginBottom: 24 }}>Toca un juego para abrir y registrar el resultado del sorteo. Las notificaciones se enviarán automáticamente a usuarios con configuración activa.</p>
+      <p style={{ color: '#555', fontSize: 13, marginBottom: 24 }}>Toca un juego para abrir y registrar el resultado del sorteo. Cada tier de premio puede tener múltiples ganadores. Las notificaciones se enviarán automáticamente.</p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 24, alignItems: 'end' }}>
         <div>
           <label style={{ display: 'block', color: '#AAA', fontSize: 12, marginBottom: 6 }}>Correo de prueba</label>
@@ -650,6 +733,7 @@ function PanelResultados() {
               {lista.map(j => {
                 const r = resultados[j.id] || {};
                 const abierto = expandido === j.id;
+                const premios = r.premios || [];
                 return (
                   <div key={j.id} style={{ backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: 12, overflow: 'hidden' }}>
                     <div onClick={() => setExpandido(abierto ? null : j.id)} style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
@@ -661,15 +745,52 @@ function PanelResultados() {
                     </div>
                     {abierto && (
                       <div style={{ padding: '0 18px 18px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 14 }}>
+                        {/* Datos principales */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
                           <div><span style={labelStyle}>Numero</span><input type="text" maxLength={j.numero_digits || 4} value={r.numero} onChange={e => actualizarCampo(j.id, 'numero', e.target.value)} style={inputStyle} /></div>
                           {j.serie_digits > 0 && <div><span style={labelStyle}>Serie</span><input type="text" value={r.serie} onChange={e => actualizarCampo(j.id, 'serie', e.target.value)} style={inputStyle} /></div>}
                           {j.usa_signo && <div><span style={labelStyle}>Signo zodiacal</span><input type="text" value={r.signo} onChange={e => actualizarCampo(j.id, 'signo', e.target.value)} style={inputStyle} /></div>}
                           {j.usa_quinta && <div><span style={labelStyle}>Quinta</span><input type="text" value={r.quinta} onChange={e => actualizarCampo(j.id, 'quinta', e.target.value)} style={inputStyle} /></div>}
-                          <div><span style={labelStyle}>Premio</span><input type="text" placeholder="$15.000.000.000" value={r.premio} onChange={e => actualizarCampo(j.id, 'premio', e.target.value)} style={inputStyle} /></div>
+                          <div><span style={labelStyle}>Premio Mayor</span><input type="text" placeholder="$15.000.000.000" value={r.premio} onChange={e => actualizarCampo(j.id, 'premio', e.target.value)} style={inputStyle} /></div>
                           <div><span style={labelStyle}>Fecha</span><input type="date" value={r.fecha} onChange={e => actualizarCampo(j.id, 'fecha', e.target.value)} style={{ ...inputStyle, colorScheme: 'dark' }} /></div>
-                          {j.tipo === 'loteria' && <div style={{ gridColumn: '1 / -1' }}><span style={labelStyle}>Secos (separados por coma)</span><input type="text" placeholder="821, 21, 1" value={r.secos} onChange={e => actualizarCampo(j.id, 'secos', e.target.value)} style={inputStyle} /></div>}
                         </div>
+
+                        {/* Tiers de premios dinámicos */}
+                        {j.tipo === 'loteria' && premios.length > 0 && (
+                          <div style={{ marginBottom: 18 }}>
+                            <p style={{ color: '#888', fontSize: 12, fontWeight: 600, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Premios por tier</p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                              {premios.map((tier, tierIdx) => (
+                                <div key={tierIdx} style={{ backgroundColor: '#0A0A0A', border: '1px solid #2A2A2A', borderRadius: 10, padding: 14 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                                    <span style={{ backgroundColor: tierColors[tier.tipo] || '#555', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' }}>{tier.tipo}</span>
+                                    <span style={{ color: '#E0E0E0', fontSize: 13, fontWeight: 600 }}>{tier.tier_nombre}</span>
+                                    <span style={{ color: '#555', fontSize: 11 }}>({tier.cifras} cifras)</span>
+                                  </div>
+                                  {(tier.ganadores || []).map((g, gIdx) => (
+                                    <div key={gIdx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                                      <input type="text" placeholder="Número" maxLength={j.numero_digits || 4} value={g.numero} onChange={e => actualizarGanador(j.id, tierIdx, gIdx, 'numero', e.target.value)} style={{ ...inputStyle, width: 100 }} />
+                                      {j.serie_digits > 0 && <input type="text" placeholder="Serie" value={g.serie} onChange={e => actualizarGanador(j.id, tierIdx, gIdx, 'serie', e.target.value)} style={{ ...inputStyle, width: 80 }} />}
+                                      <input type="text" placeholder="Premio" value={g.premio} onChange={e => actualizarGanador(j.id, tierIdx, gIdx, 'premio', e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+                                      {(tier.ganadores || []).length > 1 && (
+                                        <button onClick={() => quitarGanador(j.id, tierIdx, gIdx)} style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer', padding: 4 }} title="Quitar ganador"><X size={14} /></button>
+                                      )}
+                                    </div>
+                                  ))}
+                                  <button onClick={() => agregarGanador(j.id, tierIdx)} style={{ background: 'none', border: '1px dashed #333', borderRadius: 8, padding: '6px 12px', color: '#888', fontSize: 12, cursor: 'pointer', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <Plus size={12} /> Agregar ganador
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Legacy: secos para juegos sin plan_premios */}
+                        {j.tipo === 'loteria' && premios.length === 0 && (
+                          <div style={{ marginBottom: 14 }}><span style={labelStyle}>Secos (separados por coma)</span><input type="text" placeholder="821, 21, 1" value={r.secos} onChange={e => actualizarCampo(j.id, 'secos', e.target.value)} style={inputStyle} /></div>
+                        )}
+
                         {mensaje[j.id] && <div style={{ backgroundColor: mensaje[j.id].tipo === 'ok' ? '#0d1f0d' : '#1E0000', border: `1px solid ${mensaje[j.id].tipo === 'ok' ? '#1a3a1a' : '#3A0000'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}><p style={{ color: mensaje[j.id].tipo === 'ok' ? '#4ade80' : '#ff6b6b', fontSize: 13 }}>{mensaje[j.id].texto}</p></div>}
                         <button onClick={() => guardarResultado(j)} disabled={guardando === j.id} style={{ background: '#C41230', border: 'none', borderRadius: 10, padding: '11px 24px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: guardando === j.id ? 0.6 : 1 }}>
                           {guardando === j.id ? 'Guardando...' : 'Guardar resultado'}

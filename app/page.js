@@ -1356,6 +1356,22 @@ export default function Home() {
                           <p style={{ fontSize: 16, fontWeight: 700, color: '#E0F2FE', marginTop: 6 }}>{s.premio}</p>
                         </div>
                       </div>
+                      {s.premios_json && Array.isArray(s.premios_json) && s.premios_json.length > 0 && (
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${COLOR_BORDE}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {s.premios_json.map((tier, idx) => {
+                            const ganadores = Array.isArray(tier.ganadores) ? tier.ganadores : [];
+                            const nums = ganadores.map(g => g.numero).filter(Boolean);
+                            const colorTipo = tier.tipo === 'mayor' ? '#C41230' : tier.tipo === 'seco' ? '#F59E0B' : tier.tipo === 'aproximacion' ? '#10B981' : '#8B5CF6';
+                            return (
+                              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                                <span style={{ backgroundColor: colorTipo, color: '#fff', padding: '2px 7px', borderRadius: 6, fontWeight: 700, fontSize: 10, flexShrink: 0 }}>{tier.tier_nombre || tier.nombre}</span>
+                                {nums.length > 0 && <span style={{ color: '#E0F2FE', fontWeight: 700, letterSpacing: 1 }}>{nums.join(', ')}</span>}
+                                {tier.premio && <span style={{ color: COLOR_TEXTO_SEC, marginLeft: 'auto' }}>{tier.premio}</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
