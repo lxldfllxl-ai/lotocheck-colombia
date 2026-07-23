@@ -44,6 +44,7 @@ export default function Home() {
   const [historicoSorteos, setHistoricoSorteos] = useState([]); // sorteos historicos del juego seleccionado
   const [cargandoHistorico, setCargandoHistorico] = useState(false);
   const [verHistorico, setVerHistorico] = useState(false); // toggle para mostrar historico
+  const [historicoVisible, setHistoricoVisible] = useState(5); // cuantos sorteos mostrar (paginacion)
 
   // Cola de boletos escaneados con estado individual
   const [boletosEscaneados, setBoletosEscaneados] = useState([]); // [{...datos, estado:'pendiente'|'guardado'|'seleccionado'}]
@@ -231,6 +232,7 @@ export default function Home() {
     setJuegoDetalle(juego);
     setVerHistorico(false);
     setHistoricoSorteos([]);
+    setHistoricoVisible(5);
     setCargandoHistorico(true);
     try {
       const res = await fetch(`/api/sorteos-historico?loteria=${encodeURIComponent(juego.nombre)}`);
@@ -244,6 +246,7 @@ export default function Home() {
     setJuegoDetalle(null);
     setHistoricoSorteos([]);
     setVerHistorico(false);
+    setHistoricoVisible(5);
   }
 
   function toggleFraccion(f) {
@@ -1151,7 +1154,7 @@ export default function Home() {
                       <div style={{ ...card, marginBottom: 20 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                           <span style={label}>Ultimo resultado</span>
-                          <span style={{ fontSize: 10, backgroundColor: '#0a5a4a', color: '#10B981', padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>{ultimo.fecha}</span>
+                          <span style={{ fontSize: 10, backgroundColor: '#0a5a4a', color: '#10B981', padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>Sorteo {ultimo.numero} · {ultimo.fecha}</span>
                         </div>
                         {(() => {
                           // Premio mayor: primer tier de tipo 'mayor' en premios_json, o datos principales
@@ -1162,7 +1165,7 @@ export default function Home() {
                           const numMayor = gMayor?.numero || ultimo.numero || '';
                           const serieMayor = gMayor?.serie || ultimo.serie || '';
                           const premioMayor = gMayor?.premio || tierMayor?.premio || ultimo.premio || '';
-                          const demasTiers = tiers.filter((t, i) => t !== tierMayor && i !== 0 ? t !== tierMayor : false).filter(t => t.tipo !== 'mayor');
+                          const demasTiers = tiers.filter(t => t !== tierMayor).filter(t => t.tipo !== 'mayor');
                           return (
                             <div>
                               {/* Premio mayor en amarillo */}
@@ -1179,19 +1182,25 @@ export default function Home() {
                                   </div>
                                 </div>
                               </div>
-                              {/* Demas resultados (incluye series) */}
+                              {/* Demas resultados (incluye series) - uno debajo del otro */}
                               {demasTiers.length > 0 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                   {demasTiers.map((tier, idx) => {
                                     const ganadores = Array.isArray(tier.ganadores) ? tier.ganadores : [];
                                     const colorTipo = tier.tipo === 'seco' ? '#F59E0B' : tier.tipo === 'aproximacion' ? '#10B981' : tier.tipo === 'especial' ? '#8B5CF6' : '#555';
                                     return (
-                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                                        <span style={{ backgroundColor: colorTipo, color: '#fff', padding: '2px 7px', borderRadius: 6, fontWeight: 700, fontSize: 10, flexShrink: 0 }}>{tier.tier_nombre || tier.nombre}</span>
-                                        <span style={{ color: '#E0F2FE', fontWeight: 700, letterSpacing: 1 }}>
-                                          {ganadores.map(g => g.numero + (g.serie ? ` (Serie ${g.serie})` : '')).filter(Boolean).join(', ')}
-                                        </span>
-                                        {tier.premio && <span style={{ color: COLOR_TEXTO_SEC, marginLeft: 'auto' }}>{tier.premio}</span>}
+                                      <div key={idx} style={{ backgroundColor: COLOR_FONDO, borderRadius: 8, padding: '8px 10px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                          <span style={{ backgroundColor: colorTipo, color: '#fff', padding: '2px 7px', borderRadius: 6, fontWeight: 700, fontSize: 10, flexShrink: 0 }}>{tier.tier_nombre || tier.nombre}</span>
+                                          {tier.premio && <span style={{ color: COLOR_TEXTO_SEC, fontSize: 11, marginLeft: 'auto' }}>{tier.premio}</span>}
+                                        </div>
+                                        {ganadores.map((g, gIdx) => (
+                                          <div key={gIdx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '2px 0' }}>
+                                            <span style={{ color: '#E0F2FE', fontWeight: 700, letterSpacing: 1 }}>{g.numero}</span>
+                                            {g.serie && <span style={{ color: COLOR_TEXTO_SEC, fontSize: 11 }}>Serie {g.serie}</span>}
+                                            {g.premio && <span style={{ color: COLOR_TEXTO_TERC, fontSize: 11, marginLeft: 'auto' }}>{g.premio}</span>}
+                                          </div>
+                                        ))}
                                       </div>
                                     );
                                   })}
@@ -1217,37 +1226,68 @@ export default function Home() {
                         ) : historicoSorteos.length === 0 ? (
                           <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, textAlign: 'center', padding: 24 }}>No hay sorteos anteriores registrados.</p>
                         ) : (
-                          historicoSorteos.map((s, i) => (
-                            <div key={i} style={{ ...card }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                                <span style={{ fontSize: 12, color: COLOR_TEXTO_SEC, fontWeight: 600 }}>{s.fecha}</span>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ backgroundColor: COLOR_FONDO, borderRadius: 8, padding: '8px 14px', textAlign: 'center' }}>
-                                  <p style={{ fontSize: 22, fontWeight: 900, color: COLOR_ACENTO, letterSpacing: 3 }}>{s.numero}</p>
-                                  {s.serie && <p style={{ fontSize: 10, color: COLOR_ACENTO, opacity: 0.7 }}>Serie {s.serie}</p>}
-                                </div>
-                                <div>
-                                  {s.premio && <p style={{ fontSize: 14, fontWeight: 700, color: '#E0F2FE' }}>{s.premio}</p>}
-                                  {s.signo && <p style={{ fontSize: 11, color: COLOR_TEXTO_SEC, marginTop: 2 }}>Signo: {s.signo}</p>}
-                                </div>
-                              </div>
-                              {s.premios_json && Array.isArray(s.premios_json) && s.premios_json.length > 0 && (
-                                <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${COLOR_BORDE}`, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                                  {s.premios_json.map((tier, idx) => {
-                                    const ganadores = Array.isArray(tier.ganadores) ? tier.ganadores : [];
-                                    const colorTipo = tier.tipo === 'mayor' ? '#C41230' : tier.tipo === 'seco' ? '#F59E0B' : tier.tipo === 'aproximacion' ? '#10B981' : '#8B5CF6';
-                                    return (
-                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
-                                        <span style={{ backgroundColor: colorTipo, color: '#fff', padding: '2px 6px', borderRadius: 5, fontWeight: 700, fontSize: 9, flexShrink: 0 }}>{tier.tier_nombre || tier.nombre}</span>
-                                        {ganadores.length > 0 && <span style={{ color: '#E0F2FE', fontWeight: 700, letterSpacing: 1 }}>{ganadores.map(g => g.numero + (g.serie ? ` (Serie ${g.serie})` : '')).filter(Boolean).join(', ')}</span>}
+                          <>
+                            {historicoSorteos.slice(0, historicoVisible).map((s, i) => {
+                              const tiers = Array.isArray(s.premios_json) ? s.premios_json : [];
+                              const tierMayor = tiers.find(t => t.tipo === 'mayor') || tiers[0];
+                              const gMayor = tierMayor?.ganadores?.[0];
+                              const nombreMayor = tierMayor?.tier_nombre || tierMayor?.nombre || 'Premio mayor';
+                              const numMayor = gMayor?.numero || s.numero || '';
+                              const serieMayor = gMayor?.serie || s.serie || '';
+                              const premioMayor = gMayor?.premio || tierMayor?.premio || s.premio || '';
+                              const demasTiers = tiers.filter(t => t !== tierMayor).filter(t => t.tipo !== 'mayor');
+                              return (
+                                <div key={i} style={{ ...card }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                    <span style={{ fontSize: 12, color: COLOR_TEXTO_SEC, fontWeight: 600 }}>Sorteo {s.numero} · {s.fecha}</span>
+                                  </div>
+                                  {/* Premio mayor en amarillo */}
+                                  <div style={{ backgroundColor: 'rgba(255, 215, 0, 0.12)', border: `1px solid ${COLOR_ACENTO}`, borderRadius: 10, padding: '10px 14px', marginBottom: demasTiers.length > 0 ? 10 : 0 }}>
+                                    <p style={{ fontSize: 10, color: COLOR_ACENTO, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{nombreMayor}</p>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                      <div style={{ textAlign: 'center' }}>
+                                        <p style={{ fontSize: 24, fontWeight: 900, color: COLOR_ACENTO, letterSpacing: 3, lineHeight: 1 }}>{numMayor}</p>
+                                        {serieMayor && <p style={{ fontSize: 10, color: COLOR_ACENTO, fontWeight: 600, marginTop: 3, opacity: 0.85 }}>Serie {serieMayor}</p>}
                                       </div>
-                                    );
-                                  })}
+                                      <div>
+                                        {premioMayor && <p style={{ fontSize: 13, fontWeight: 700, color: COLOR_ACENTO }}>{premioMayor}</p>}
+                                        {s.signo && <p style={{ fontSize: 11, color: COLOR_ACENTO, marginTop: 3, opacity: 0.8 }}>Signo: {s.signo}</p>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {/* Demas resultados - uno debajo del otro */}
+                                  {demasTiers.length > 0 && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                      {demasTiers.map((tier, idx) => {
+                                        const ganadores = Array.isArray(tier.ganadores) ? tier.ganadores : [];
+                                        const colorTipo = tier.tipo === 'seco' ? '#F59E0B' : tier.tipo === 'aproximacion' ? '#10B981' : tier.tipo === 'especial' ? '#8B5CF6' : '#555';
+                                        return (
+                                          <div key={idx} style={{ backgroundColor: COLOR_FONDO, borderRadius: 8, padding: '6px 10px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                                              <span style={{ backgroundColor: colorTipo, color: '#fff', padding: '2px 6px', borderRadius: 5, fontWeight: 700, fontSize: 9, flexShrink: 0 }}>{tier.tier_nombre || tier.nombre}</span>
+                                              {tier.premio && <span style={{ color: COLOR_TEXTO_SEC, fontSize: 10, marginLeft: 'auto' }}>{tier.premio}</span>}
+                                            </div>
+                                            {ganadores.map((g, gIdx) => (
+                                              <div key={gIdx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '1px 0' }}>
+                                                <span style={{ color: '#E0F2FE', fontWeight: 700, letterSpacing: 1 }}>{g.numero}</span>
+                                                {g.serie && <span style={{ color: COLOR_TEXTO_SEC, fontSize: 10 }}>Serie {g.serie}</span>}
+                                                {g.premio && <span style={{ color: COLOR_TEXTO_TERC, fontSize: 10, marginLeft: 'auto' }}>{g.premio}</span>}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          ))
+                              );
+                            })}
+                            {historicoVisible < historicoSorteos.length && (
+                              <button onClick={() => setHistoricoVisible(v => v + 5)} style={{ width: '100%', background: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px 18px', color: COLOR_ACENTO, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                                Cargar mas resultados
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     )}
@@ -1747,7 +1787,7 @@ export default function Home() {
           <div style={{ width: '100%', maxWidth: 1800, display: 'flex', justifyContent: 'space-around' }}>
             {[
               { id: 'inicio', label: 'Inicio', icon: HomeIcon },
-              { id: 'loterias', label: 'Juegos y Resultados', icon: Ticket },
+              { id: 'loterias', label: 'Juegos & Resultados', icon: Ticket },
               { id: 'verificar', label: 'Verificar/Guardar', icon: Search },
               { id: 'numeros', label: 'Mis Numeros', icon: Ticket },
             ].map(({ id, label: lbl, icon: Icon }) => (
