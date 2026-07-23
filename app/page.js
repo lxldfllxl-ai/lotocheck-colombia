@@ -39,6 +39,12 @@ export default function Home() {
   const [mostrarNotificacionesPanel, setMostrarNotificacionesPanel] = useState(false);
   const [mostrarBannerPush, setMostrarBannerPush] = useState(false); // Banner para sugerir activar push en este dispositivo
 
+  // Vista de loterias / juegos
+  const [juegoDetalle, setJuegoDetalle] = useState(null); // juego seleccionado para ver detalle
+  const [historicoSorteos, setHistoricoSorteos] = useState([]); // sorteos historicos del juego seleccionado
+  const [cargandoHistorico, setCargandoHistorico] = useState(false);
+  const [verHistorico, setVerHistorico] = useState(false); // toggle para mostrar historico
+
   // Cola de boletos escaneados con estado individual
   const [boletosEscaneados, setBoletosEscaneados] = useState([]); // [{...datos, estado:'pendiente'|'guardado'|'seleccionado'}]
   const [indiceSeleccionado, setIndiceSeleccionado] = useState(null);
@@ -219,6 +225,25 @@ export default function Home() {
     setJuegoSeleccionado(j);
     setResultado(null);
     setNumero(''); setSerie(''); setFraccionesSeleccionadas([]); setSigno('');
+  }
+
+  async function abrirDetalleJuego(juego) {
+    setJuegoDetalle(juego);
+    setVerHistorico(false);
+    setHistoricoSorteos([]);
+    setCargandoHistorico(true);
+    try {
+      const res = await fetch(`/api/sorteos-historico?loteria=${encodeURIComponent(juego.nombre)}`);
+      const data = await res.json();
+      if (data.sorteos) setHistoricoSorteos(data.sorteos);
+    } catch (e) { console.error(e); }
+    finally { setCargandoHistorico(false); }
+  }
+
+  function cerrarDetalleJuego() {
+    setJuegoDetalle(null);
+    setHistoricoSorteos([]);
+    setVerHistorico(false);
   }
 
   function toggleFraccion(f) {
@@ -1067,6 +1092,194 @@ export default function Home() {
             </div>
           )}
 
+          {/* ── LOTERIAS / JUEGOS ── */}
+          {tab === 'loterias' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {juegoDetalle ? (
+                <div>
+                  <button onClick={cerrarDetalleJuego} style={{ background: 'none', border: 'none', color: COLOR_TEXTO_SEC, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, padding: 0 }}>
+                    <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} /> Volver a loterias
+                  </button>
+
+                  {/* Info del juego */}
+                  <div style={{ ...card, marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+                      {juegoDetalle.logo_url ? (
+                        <img src={juegoDetalle.logo_url} alt={juegoDetalle.nombre} style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: 56, height: 56, backgroundColor: COLOR_FONDO, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Ticket size={26} color={COLOR_ACENTO} />
+                        </div>
+                      )}
+                      <div>
+                        <p style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>{juegoDetalle.nombre}</p>
+                        {juegoDetalle.categoria && <span style={{ fontSize: 11, backgroundColor: COLOR_FONDO, color: COLOR_TEXTO_SEC, padding: '3px 10px', borderRadius: 20, fontWeight: 600 }}>{juegoDetalle.categoria}</span>}
+                      </div>
+                    </div>
+                    {juegoDetalle.descripcion && <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>{juegoDetalle.descripcion}</p>}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+                      {juegoDetalle.dia_sorteo && (
+                        <div style={{ backgroundColor: COLOR_FONDO, borderRadius: 10, padding: '12px 14px' }}>
+                          <p style={{ fontSize: 11, color: COLOR_TEXTO_TERC, marginBottom: 4 }}>Dia del sorteo</p>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: '#E0F2FE' }}>{juegoDetalle.dia_sorteo}</p>
+                        </div>
+                      )}
+                      {juegoDetalle.horario && (
+                        <div style={{ backgroundColor: COLOR_FONDO, borderRadius: 10, padding: '12px 14px' }}>
+                          <p style={{ fontSize: 11, color: COLOR_TEXTO_TERC, marginBottom: 4 }}>Horario</p>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: '#E0F2FE' }}>{juegoDetalle.horario}</p>
+                        </div>
+                      )}
+                      {juegoDetalle.canal_en_vivo && (
+                        <div style={{ backgroundColor: COLOR_FONDO, borderRadius: 10, padding: '12px 14px' }}>
+                          <p style={{ fontSize: 11, color: COLOR_TEXTO_TERC, marginBottom: 4 }}>Ver en vivo</p>
+                          <a href={juegoDetalle.canal_en_vivo} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, fontWeight: 700, color: COLOR_ACENTO, textDecoration: 'none' }}>Ver canal →</a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ultimo resultado guardado */}
+                  {(() => {
+                    const ultimo = resultadosReales.find(r => r.loteria.toLowerCase() === juegoDetalle.nombre.toLowerCase());
+                    if (!ultimo) return (
+                      <div style={{ ...card, textAlign: 'center', padding: 32 }}>
+                        <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14 }}>No hay resultados guardados para este juego aun.</p>
+                      </div>
+                    );
+                    return (
+                      <div style={{ ...card, marginBottom: 20 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                          <span style={label}>Ultimo resultado</span>
+                          <span style={{ fontSize: 10, backgroundColor: '#0a5a4a', color: '#10B981', padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>{ultimo.fecha}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+                          <div style={{ backgroundColor: COLOR_FONDO, borderRadius: 10, padding: '10px 18px', textAlign: 'center' }}>
+                            <p style={{ fontSize: 28, fontWeight: 900, color: COLOR_ACENTO, letterSpacing: 4 }}>{ultimo.numero}</p>
+                            {ultimo.serie && <p style={{ fontSize: 11, color: COLOR_ACENTO, fontWeight: 500, marginTop: 2, opacity: 0.7 }}>Serie {ultimo.serie}</p>}
+                          </div>
+                          <div>
+                            <p style={{ fontSize: 16, fontWeight: 700, color: '#E0F2FE' }}>{ultimo.premio}</p>
+                            {ultimo.signo && <p style={{ fontSize: 12, color: COLOR_TEXTO_SEC, marginTop: 4 }}>Signo: {ultimo.signo}</p>}
+                          </div>
+                        </div>
+                        {ultimo.premios_json && Array.isArray(ultimo.premios_json) && ultimo.premios_json.length > 0 && (
+                          <div style={{ paddingTop: 12, borderTop: `1px solid ${COLOR_BORDE}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {ultimo.premios_json.map((tier, idx) => {
+                              const ganadores = Array.isArray(tier.ganadores) ? tier.ganadores : [];
+                              const nums = ganadores.map(g => g.numero).filter(Boolean);
+                              const colorTipo = tier.tipo === 'mayor' ? '#C41230' : tier.tipo === 'seco' ? '#F59E0B' : tier.tipo === 'aproximacion' ? '#10B981' : '#8B5CF6';
+                              return (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                                  <span style={{ backgroundColor: colorTipo, color: '#fff', padding: '2px 7px', borderRadius: 6, fontWeight: 700, fontSize: 10, flexShrink: 0 }}>{tier.tier_nombre || tier.nombre}</span>
+                                  {nums.length > 0 && <span style={{ color: '#E0F2FE', fontWeight: 700, letterSpacing: 1 }}>{nums.join(', ')}</span>}
+                                  {tier.premio && <span style={{ color: COLOR_TEXTO_SEC, marginLeft: 'auto' }}>{tier.premio}</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Resultados anteriores */}
+                  <div>
+                    <button onClick={() => setVerHistorico(v => !v)} style={{ width: '100%', background: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '14px 18px', color: COLOR_TEXTO_SEC, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      Ver resultados de sorteos anteriores
+                      <ChevronRight size={16} style={{ transform: verHistorico ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+                    </button>
+                    {verHistorico && (
+                      <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {cargandoHistorico ? (
+                          <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, textAlign: 'center', padding: 24 }}>Cargando historico...</p>
+                        ) : historicoSorteos.length === 0 ? (
+                          <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, textAlign: 'center', padding: 24 }}>No hay sorteos anteriores registrados.</p>
+                        ) : (
+                          historicoSorteos.map((s, i) => (
+                            <div key={i} style={{ ...card }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                <span style={{ fontSize: 12, color: COLOR_TEXTO_SEC, fontWeight: 600 }}>{s.fecha}</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{ backgroundColor: COLOR_FONDO, borderRadius: 8, padding: '8px 14px', textAlign: 'center' }}>
+                                  <p style={{ fontSize: 22, fontWeight: 900, color: COLOR_ACENTO, letterSpacing: 3 }}>{s.numero}</p>
+                                  {s.serie && <p style={{ fontSize: 10, color: COLOR_ACENTO, opacity: 0.7 }}>Serie {s.serie}</p>}
+                                </div>
+                                <div>
+                                  {s.premio && <p style={{ fontSize: 14, fontWeight: 700, color: '#E0F2FE' }}>{s.premio}</p>}
+                                  {s.signo && <p style={{ fontSize: 11, color: COLOR_TEXTO_SEC, marginTop: 2 }}>Signo: {s.signo}</p>}
+                                </div>
+                              </div>
+                              {s.premios_json && Array.isArray(s.premios_json) && s.premios_json.length > 0 && (
+                                <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${COLOR_BORDE}`, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                  {s.premios_json.map((tier, idx) => {
+                                    const ganadores = Array.isArray(tier.ganadores) ? tier.ganadores : [];
+                                    const nums = ganadores.map(g => g.numero).filter(Boolean);
+                                    const colorTipo = tier.tipo === 'mayor' ? '#C41230' : tier.tipo === 'seco' ? '#F59E0B' : tier.tipo === 'aproximacion' ? '#10B981' : '#8B5CF6';
+                                    return (
+                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
+                                        <span style={{ backgroundColor: colorTipo, color: '#fff', padding: '2px 6px', borderRadius: 5, fontWeight: 700, fontSize: 9, flexShrink: 0 }}>{tier.tier_nombre || tier.nombre}</span>
+                                        {nums.length > 0 && <span style={{ color: '#E0F2FE', fontWeight: 700, letterSpacing: 1 }}>{nums.join(', ')}</span>}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <span style={label}>Todas las loterias y juegos</span>
+                  <p style={{ color: COLOR_TEXTO_TERC, fontSize: 13, marginBottom: 20 }}>Selecciona un juego para ver dias, horarios, donde ver en vivo y resultados.</p>
+                  {juegos.length === 0 ? (
+                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, textAlign: 'center', padding: 40 }}>Cargando juegos...</p>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+                      {juegos.map(j => {
+                        const ultimo = resultadosReales.find(r => r.loteria.toLowerCase() === j.nombre.toLowerCase());
+                        return (
+                          <button key={j.id} onClick={() => abrirDetalleJuego(j)} style={{ ...card, textAlign: 'left', cursor: 'pointer', border: `1px solid ${COLOR_BORDE}`, transition: 'border-color 0.2s' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                              {j.logo_url ? (
+                                <img src={j.logo_url} alt={j.nombre} style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: 44, height: 44, backgroundColor: COLOR_FONDO, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Ticket size={20} color={COLOR_ACENTO} />
+                                </div>
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{j.nombre}</p>
+                                {j.categoria && <span style={{ fontSize: 10, color: COLOR_TEXTO_TERC }}>{j.categoria}</span>}
+                              </div>
+                              <ChevronRight size={18} color={COLOR_TEXTO_TERC} />
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              {j.dia_sorteo && <span style={{ fontSize: 10, backgroundColor: COLOR_FONDO, color: COLOR_TEXTO_SEC, padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>{j.dia_sorteo}</span>}
+                              {j.horario && <span style={{ fontSize: 10, backgroundColor: COLOR_FONDO, color: COLOR_TEXTO_SEC, padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>{j.horario}</span>}
+                              {j.canal_en_vivo && <span style={{ fontSize: 10, backgroundColor: '#3a2f0a', color: COLOR_ACENTO, padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>En vivo</span>}
+                            </div>
+                            {ultimo && (
+                              <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${COLOR_BORDE}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 16, fontWeight: 900, color: COLOR_ACENTO, letterSpacing: 2 }}>{ultimo.numero}</span>
+                                <span style={{ fontSize: 10, color: COLOR_TEXTO_TERC }}>{ultimo.fecha}</span>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── VERIFICAR / GUARDAR ── */}
           {tab === 'verificar' && juegoSeleccionado && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32 }}>
@@ -1340,8 +1553,10 @@ export default function Home() {
                 <p style={{ textAlign: 'center', color: COLOR_TEXTO_SEC, fontSize: 14, padding: 40 }}>No hay resultados disponibles aun.</p>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
-                  {resultadosReales.map((s) => (
-                    <div key={s.loteria} style={{ ...card }}>
+                  {resultadosReales.map((s) => {
+                    const j = juegos.find(j => j.nombre.toLowerCase() === s.loteria.toLowerCase());
+                    return (
+                    <div key={s.loteria} onClick={() => { if (j) { abrirDetalleJuego(j); setTab('loterias'); } }} style={{ ...card, cursor: j ? 'pointer' : 'default', border: j ? `1px solid ${COLOR_BORDE}` : undefined }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                         <p style={{ fontSize: 15, fontWeight: 700, color: '#E0F2FE' }}>{s.loteria}</p>
                         <span style={{ fontSize: 10, backgroundColor: '#0a5a4a', color: '#10B981', padding: '3px 8px', borderRadius: 20, fontWeight: 600, flexShrink: 0 }}>Reciente</span>
@@ -1372,8 +1587,10 @@ export default function Home() {
                           })}
                         </div>
                       )}
+                      {j && <p style={{ marginTop: 10, fontSize: 11, color: COLOR_ACENTO, fontWeight: 600, textAlign: 'right' }}>Ver info del juego →</p>}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1557,6 +1774,7 @@ export default function Home() {
           <div style={{ width: '100%', maxWidth: 1800, display: 'flex', justifyContent: 'space-around' }}>
             {[
               { id: 'inicio', label: 'Inicio', icon: HomeIcon },
+              { id: 'loterias', label: 'Loterias', icon: Ticket },
               { id: 'verificar', label: 'Verificar/Guardar', icon: Search },
               { id: 'resultados', label: 'Resultados', icon: Calendar },
               { id: 'numeros', label: 'Mis Numeros', icon: Ticket },

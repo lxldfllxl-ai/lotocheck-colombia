@@ -521,7 +521,6 @@ function PanelResultados() {
   const [cargando, setCargando] = useState(true);
   const [expandido, setExpandido] = useState(null);
   const [resultados, setResultados] = useState({});
-  const [modos, setModos] = useState({}); // { [juegoId]: 'simple' | 'tier' }
   const [guardando, setGuardando] = useState(null);
   const [mensaje, setMensaje] = useState({});
   const [testEmail, setTestEmail] = useState('');
@@ -541,7 +540,6 @@ function PanelResultados() {
     const existentes = dataResultados.resultados || [];
 
     const init = {};
-    const modosInit = {};
     activos.forEach(j => {
       const ex = existentes.find(r => r.loteria === j.nombre);
       // Inicializar premios desde plan_premios del juego
@@ -566,23 +564,20 @@ function PanelResultados() {
         }));
         init[j.id] = {
           numero: ex?.numero || '', serie: ex?.serie || '', premio: ex?.premio || '',
-          fecha: ex?.fecha || '', secos: (ex?.secos || []).join(', '),
+          fecha: ex?.fecha || '',
           signo: ex?.signo || '', quinta: ex?.quinta || '',
           premios: premiosGuardados,
         };
-        modosInit[j.id] = 'tier';
       } else {
         init[j.id] = {
           numero: ex?.numero || '', serie: ex?.serie || '', premio: ex?.premio || '',
-          fecha: ex?.fecha || '', secos: (ex?.secos || []).join(', '),
+          fecha: ex?.fecha || '',
           signo: ex?.signo || '', quinta: ex?.quinta || '',
           premios: premiosInit,
         };
-        modosInit[j.id] = premiosInit.length > 0 ? 'tier' : 'simple';
       }
     });
     setResultados(init);
-    setModos(modosInit);
     setCargando(false);
   }
 
@@ -628,11 +623,11 @@ function PanelResultados() {
   async function guardarResultado(juego) {
     setGuardando(juego.id); setMensaje(prev => ({ ...prev, [juego.id]: null }));
     const r = resultados[juego.id];
-    const modo = modos[juego.id] || 'simple';
-    if (!r.numero) { setMensaje(prev => ({ ...prev, [juego.id]: { tipo: 'error', texto: 'El numero es obligatorio.' } })); setGuardando(null); return; }
+    if (!r.numero) { setMensaje(prev => ({ ...prev, [juego.id]: { tipo: 'error', texto: 'El numero del sorteo es obligatorio.' } })); setGuardando(null); return; }
+    if (!r.fecha) { setMensaje(prev => ({ ...prev, [juego.id]: { tipo: 'error', texto: 'La fecha del sorteo es obligatoria.' } })); setGuardando(null); return; }
 
-    // Construir premios para enviar (solo en modo tier)
-    const premiosParaEnviar = modo === 'tier' ? (r.premios || []).map(p => ({
+    // Construir premios para enviar (siempre modo tier)
+    const premiosParaEnviar = (r.premios || []).map(p => ({
       tier_nombre: p.tier_nombre,
       tier_posicion: p.tier_posicion,
       tipo: p.tipo,
@@ -642,17 +637,22 @@ function PanelResultados() {
         serie: (g.serie || '').toUpperCase(),
         premio: g.premio || p.premio || '',
       })),
-    })).filter(p => p.ganadores.length > 0) : [];
+    })).filter(p => p.ganadores.length > 0);
+
+    // El premio mayor se toma del primer tier de tipo 'mayor' si existe
+    const tierMayor = (r.premios || []).find(p => p.tipo === 'mayor');
+    const premioMayorValor = tierMayor?.ganadores?.[0]?.premio || r.premio || '';
+    const numeroMayor = tierMayor?.ganadores?.[0]?.numero || r.numero || '';
 
     const res = await fetch('/api/admin/resultados', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         loteria: juego.nombre,
-        numero: r.numero.padStart(juego.numero_digits || 4, '0'),
+        numero: numeroMayor.padStart(juego.numero_digits || 4, '0'),
         serie: (r.serie || '').toUpperCase(),
-        premio: r.premio, fecha: r.fecha,
-        secos: r.secos.split(',').map(s => s.trim()).filter(Boolean),
+        premio: premioMayorValor, fecha: r.fecha,
+        secos: [],
         premios: premiosParaEnviar,
         signo: r.signo, quinta: r.quinta,
       }),
@@ -762,7 +762,7 @@ function PanelResultados() {
   return (
     <div>
       <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Actualizar resultados</p>
-      <p style={{ color: '#555', fontSize: 13, marginBottom: 24 }}>Toca un juego para abrir y registrar el resultado del sorteo. Cada juego puede usar <strong style={{ color: '#888' }}>modo simple</strong> (numero mayor + secos) o <strong style={{ color: '#888' }}>modo por tiers</strong> (multiples ganadores por premio del plan). Las notificaciones se envian automaticamente.</p>
+      <p style={{ color: '#555', fontSize: 13, marginBottom: 24 }}>Toca un juego para abrir y registrar el resultado del sorteo. Ingresa el <strong style={{ color: '#888' }}>numero del sorteo</strong> y la <strong style={{ color: '#888' }}>fecha</strong>, luego registra los numeros ganadores en cada premio del plan (incluye premio mayor y secos). Las notificaciones se envian automaticamente.</p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 24, alignItems: 'end' }}>
         <div>
           <label style={{ display: 'block', color: '#AAA', fontSize: 12, marginBottom: 6 }}>Correo de prueba</label>
@@ -799,39 +799,19 @@ function PanelResultados() {
                     </div>
                     {abierto && (
                       <div style={{ padding: '0 18px 18px' }}>
-                        {/* Datos principales */}
+                        {/* Datos principales: numero del sorteo + fecha */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
-                          <div><span style={labelStyle}>Numero</span><input type="text" maxLength={j.numero_digits || 4} value={r.numero} onChange={e => actualizarCampo(j.id, 'numero', e.target.value)} style={inputStyle} /></div>
+                          <div><span style={labelStyle}>Numero del sorteo *</span><input type="text" maxLength={j.numero_digits || 4} value={r.numero} onChange={e => actualizarCampo(j.id, 'numero', e.target.value)} style={inputStyle} /></div>
                           {j.serie_digits > 0 && <div><span style={labelStyle}>Serie</span><input type="text" value={r.serie} onChange={e => actualizarCampo(j.id, 'serie', e.target.value)} style={inputStyle} /></div>}
                           {j.usa_signo && <div><span style={labelStyle}>Signo zodiacal</span><input type="text" value={r.signo} onChange={e => actualizarCampo(j.id, 'signo', e.target.value)} style={inputStyle} /></div>}
                           {j.usa_quinta && <div><span style={labelStyle}>Quinta</span><input type="text" value={r.quinta} onChange={e => actualizarCampo(j.id, 'quinta', e.target.value)} style={inputStyle} /></div>}
-                          <div><span style={labelStyle}>Premio Mayor</span><input type="text" placeholder="$15.000.000.000" value={r.premio} onChange={e => actualizarCampo(j.id, 'premio', e.target.value)} style={inputStyle} /></div>
-                          <div><span style={labelStyle}>Fecha</span><input type="date" value={r.fecha} onChange={e => actualizarCampo(j.id, 'fecha', e.target.value)} style={{ ...inputStyle, colorScheme: 'dark' }} /></div>
+                          <div><span style={labelStyle}>Fecha del sorteo *</span><input type="date" value={r.fecha} onChange={e => actualizarCampo(j.id, 'fecha', e.target.value)} style={{ ...inputStyle, colorScheme: 'dark' }} /></div>
                         </div>
 
-                        {/* Selector de modo: simple | tier */}
-                        <div style={{ display: 'flex', gap: 8, marginBottom: 16, backgroundColor: '#0A0A0A', border: '1px solid #2A2A2A', borderRadius: 10, padding: 4 }}>
-                          <button onClick={() => setModos(prev => ({ ...prev, [j.id]: 'simple' }))} style={{ flex: 1, background: (modos[j.id] || 'simple') === 'simple' ? '#C41230' : 'transparent', border: 'none', borderRadius: 8, padding: '8px 12px', color: (modos[j.id] || 'simple') === 'simple' ? '#fff' : '#888', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                            Modo simple
-                          </button>
-                          <button onClick={() => setModos(prev => ({ ...prev, [j.id]: 'tier' }))} disabled={premios.length === 0} style={{ flex: 1, background: modos[j.id] === 'tier' ? '#C41230' : 'transparent', border: 'none', borderRadius: 8, padding: '8px 12px', color: modos[j.id] === 'tier' ? '#fff' : (premios.length === 0 ? '#444' : '#888'), fontSize: 12, fontWeight: 600, cursor: premios.length === 0 ? 'not-allowed' : 'pointer' }} title={premios.length === 0 ? 'El juego no tiene plan de premios' : ''}>
-                            Modo por tiers
-                          </button>
-                        </div>
-
-                        {/* MODO SIMPLE: numero mayor + secos */}
-                        {(modos[j.id] || 'simple') === 'simple' && (
-                          <div style={{ marginBottom: 14 }}>
-                            <span style={labelStyle}>Secos / numeros sueltos (separados por coma)</span>
-                            <input type="text" placeholder="Ej: 821, 21, 1, 4592" value={r.secos} onChange={e => actualizarCampo(j.id, 'secos', e.target.value)} style={inputStyle} />
-                            <p style={{ color: '#444', fontSize: 11, marginTop: 6 }}>Registra el numero mayor arriba y los secos aqui. Ideal para resultados rapidos.</p>
-                          </div>
-                        )}
-
-                        {/* MODO TIER: premios por tier con multiples ganadores */}
-                        {modos[j.id] === 'tier' && premios.length > 0 && (
+                        {/* PREMIOS POR TIER (incluye premio mayor y secos del plan) */}
+                        {premios.length > 0 ? (
                           <div style={{ marginBottom: 18 }}>
-                            <p style={{ color: '#888', fontSize: 12, fontWeight: 600, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Premios por tier</p>
+                            <p style={{ color: '#888', fontSize: 12, fontWeight: 600, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Premios del plan</p>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                               {premios.map((tier, tierIdx) => (
                                 <div key={tierIdx} style={{ backgroundColor: '#0A0A0A', border: '1px solid #2A2A2A', borderRadius: 10, padding: 14 }}>
@@ -850,12 +830,16 @@ function PanelResultados() {
                                       )}
                                     </div>
                                   ))}
-                                  <button onClick={() => agregarGanador(j.id, tierIdx)} style={{ background: 'none', border: '1px dashed #333', borderRadius: 8, padding: '6px 12px', color: '#888', fontSize: 12, cursor: 'pointer', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <button onClick={() => agregarGanador(j.id, tierIdx)} style={{ background: 'none', border: '1px dashed #333', borderRadius: 8, padding: '6px 12px', color: '#888', fontSize: 12, cursor: 'pointer', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }} title="Agregar ganador">
                                     <Plus size={12} /> Agregar ganador
                                   </button>
                                 </div>
                               ))}
                             </div>
+                          </div>
+                        ) : (
+                          <div style={{ marginBottom: 18, padding: 16, backgroundColor: '#0A0A0A', border: '1px solid #2A2A2A', borderRadius: 10 }}>
+                            <p style={{ color: '#555', fontSize: 13 }}>Este juego no tiene un plan de premios configurado. Configura el plan de premios en la seccion de Juegos para registrar resultados por tier.</p>
                           </div>
                         )}
 

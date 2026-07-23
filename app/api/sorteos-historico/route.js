@@ -8,6 +8,18 @@ export async function GET(request) {
   const loteria = searchParams.get('loteria');
   const fecha = searchParams.get('fecha');
 
+  // Modo lista: devuelve todos los sorteos historicos de una loteria
+  if (loteria && !fecha) {
+    const { data, error } = await supabase
+      .from('sorteos_historico')
+      .select('*')
+      .eq('loteria', loteria)
+      .order('fecha', { ascending: false })
+      .limit(50);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ sorteos: data || [] });
+  }
+
   if (!loteria || !fecha) {
     return NextResponse.json({ error: 'Faltan parametros loteria y fecha.' }, { status: 400 });
   }
