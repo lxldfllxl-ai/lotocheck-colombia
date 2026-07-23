@@ -659,7 +659,20 @@ function PanelResultados() {
     });
     const data = await res.json();
     if (!res.ok) setMensaje(prev => ({ ...prev, [juego.id]: { tipo: 'error', texto: data.error || 'Error al guardar.' } }));
-    else setMensaje(prev => ({ ...prev, [juego.id]: { tipo: 'ok', texto: 'Guardado correctamente.' } }));
+    else {
+      setMensaje(prev => ({ ...prev, [juego.id]: { tipo: 'ok', texto: 'Guardado correctamente.' } }));
+      // Limpiar campos del formulario tras guardar exitosamente
+      const plan = Array.isArray(juego.plan_premios) ? juego.plan_premios : [];
+      const premiosInit = plan.map(p => ({
+        tier_nombre: p.nombre || '',
+        tier_posicion: p.posicion || 1,
+        tipo: p.tipo || 'seco',
+        cifras: p.cifras || 0,
+        premio: p.premio || '',
+        ganadores: Array.from({ length: p.cantidad_ganadores || 1 }, () => ({ numero: '', serie: '', premio: p.premio || '' })),
+      }));
+      setResultados(prev => ({ ...prev, [juego.id]: { numero: '', serie: '', premio: '', fecha: '', signo: '', quinta: '', premios: premiosInit } }));
+    }
     setGuardando(null);
   }
 
@@ -802,7 +815,6 @@ function PanelResultados() {
                         {/* Datos principales: numero del sorteo + fecha */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
                           <div><span style={labelStyle}>Numero del sorteo *</span><input type="text" maxLength={j.numero_digits || 4} value={r.numero} onChange={e => actualizarCampo(j.id, 'numero', e.target.value)} style={inputStyle} /></div>
-                          {j.serie_digits > 0 && <div><span style={labelStyle}>Serie</span><input type="text" value={r.serie} onChange={e => actualizarCampo(j.id, 'serie', e.target.value)} style={inputStyle} /></div>}
                           {j.usa_signo && <div><span style={labelStyle}>Signo zodiacal</span><input type="text" value={r.signo} onChange={e => actualizarCampo(j.id, 'signo', e.target.value)} style={inputStyle} /></div>}
                           {j.usa_quinta && <div><span style={labelStyle}>Quinta</span><input type="text" value={r.quinta} onChange={e => actualizarCampo(j.id, 'quinta', e.target.value)} style={inputStyle} /></div>}
                           <div><span style={labelStyle}>Fecha del sorteo *</span><input type="date" value={r.fecha} onChange={e => actualizarCampo(j.id, 'fecha', e.target.value)} style={{ ...inputStyle, colorScheme: 'dark' }} /></div>
