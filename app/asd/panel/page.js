@@ -275,7 +275,7 @@ function PanelJuegos() {
   ];
 
   function formVacio() {
-    return { nombre: '', categoria: 'Loteria', tipo: 'loteria', dia_sorteo: '', descripcion: '', orden: 99, numero_digits: 4, serie_digits: 0, total_fracciones: 1, tiene_fraccion: false, usa_signo: false, usa_quinta: false, activo: true, plan_premios: [] };
+    return { nombre: '', categoria: 'Loteria', tipo: 'loteria', dia_sorteo: '', horario: '', operador: '', canal_en_vivo: '', descripcion: '', orden: 99, numero_digits: 4, serie_digits: 0, total_fracciones: 1, tiene_fraccion: false, usa_signo: false, usa_quinta: false, activo: true, plan_premios: [] };
   }
 
   useEffect(() => { cargar(); }, []);
@@ -339,6 +339,9 @@ function PanelJuegos() {
       categoria: ['Loteria', 'Chance', 'Especiales'].includes(juego.categoria) ? juego.categoria : 'Loteria',
       tipo: juego.tipo || 'loteria',
       dia_sorteo: juego.dia_sorteo || '',
+      horario: juego.horario || '',
+      operador: juego.operador || '',
+      canal_en_vivo: juego.canal_en_vivo || '',
       descripcion: juego.descripcion || '',
       orden: juego.orden || 99,
       numero_digits: juego.numero_digits || 4,
@@ -393,7 +396,10 @@ function PanelJuegos() {
             <div><span style={labelStyle}>Nombre</span><input type="text" placeholder="Ej: Loteria de Bogota" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} style={inputStyle} /></div>
             <div><span style={labelStyle}>Categoria</span><select value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })} style={inputStyle}>{categorias.map(c => <option key={c} style={{ backgroundColor: '#0A0A0A' }}>{c}</option>)}</select></div>
             <div><span style={labelStyle}>Tipo de juego</span><select value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })} style={inputStyle}>{tipos.map(t => <option key={t} value={t} style={{ backgroundColor: '#0A0A0A' }}>{t}</option>)}</select></div>
-            <div><span style={labelStyle}>Dia y hora del sorteo</span><input type="text" placeholder="Ej: Viernes a las 11:00 P.M." value={form.dia_sorteo} onChange={e => setForm({ ...form, dia_sorteo: e.target.value })} style={inputStyle} /></div>
+            <div><span style={labelStyle}>Dia del sorteo</span><input type="text" placeholder="Ej: Viernes" value={form.dia_sorteo} onChange={e => setForm({ ...form, dia_sorteo: e.target.value })} style={inputStyle} /></div>
+            <div><span style={labelStyle}>Horario</span><input type="text" placeholder="Ej: 11:00 PM" value={form.horario} onChange={e => setForm({ ...form, horario: e.target.value })} style={inputStyle} /></div>
+            <div><span style={labelStyle}>Canal en vivo</span><input type="text" placeholder="Ej: Telecaribe, Canal Capital" value={form.canal_en_vivo} onChange={e => setForm({ ...form, canal_en_vivo: e.target.value })} style={inputStyle} /></div>
+            <div><span style={labelStyle}>Operador</span><input type="text" placeholder="Ej: Loteria de Bogota" value={form.operador} onChange={e => setForm({ ...form, operador: e.target.value })} style={inputStyle} /></div>
             <div><span style={labelStyle}>Digitos del numero</span><input type="number" min="1" max="6" value={form.numero_digits} onChange={e => setForm({ ...form, numero_digits: parseInt(e.target.value) || 0 })} style={inputStyle} /></div>
             <div><span style={labelStyle}>Digitos de la serie (0 si no tiene)</span><input type="number" min="0" max="4" value={form.serie_digits} onChange={e => setForm({ ...form, serie_digits: parseInt(e.target.value) || 0 })} style={inputStyle} /></div>
             <div><span style={labelStyle}>Fracciones (1 si no tiene)</span><input type="number" min="1" max="100" value={form.total_fracciones} onChange={e => setForm({ ...form, total_fracciones: parseInt(e.target.value) || 1 })} style={inputStyle} /></div>
@@ -478,8 +484,11 @@ function PanelJuegos() {
                     <div style={{ flex: 1, minWidth: 140 }}>
                       <p style={{ color: j.activo ? '#E0E0E0' : '#555', fontSize: 14, fontWeight: 600 }}>{j.nombre}</p>
                       <p style={{ color: '#444', fontSize: 12, marginTop: 2 }}>
-                        {j.dia_sorteo && `${j.dia_sorteo} · `}{j.numero_digits || 4} cifras{j.serie_digits > 0 ? ` + ${j.serie_digits} serie` : ''}{j.tiene_fraccion && ` · ${j.total_fracciones || 1} fracciones`}
+                        {j.dia_sorteo && `${j.dia_sorteo} · `}{j.horario && `${j.horario} · `}{j.numero_digits || 4} cifras{j.serie_digits > 0 ? ` + ${j.serie_digits} serie` : ''}{j.tiene_fraccion && ` · ${j.total_fracciones || 1} fracciones`}
                       </p>
+                      {j.canal_en_vivo && (
+                        <p style={{ color: '#C41230', fontSize: 11, marginTop: 2 }}>📺 {j.canal_en_vivo}</p>
+                      )}
                       {Array.isArray(j.plan_premios) && j.plan_premios.length > 0 && (
                         <p style={{ color: '#555', fontSize: 11, marginTop: 2 }}>{j.plan_premios.length} premio{j.plan_premios.length !== 1 ? 's' : ''} en el plan</p>
                       )}
