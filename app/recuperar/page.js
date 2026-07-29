@@ -70,7 +70,7 @@ export default function Recuperar() {
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
               <Image src="/logo.png" alt="NotiLoto" width={56} height={56} style={{ borderRadius: 14, objectFit: 'cover' }} />
             </div>
-            <p style={{ color: '#fff', fontWeight: 800, fontSize: 22 }}>Recuperar contrasena</p>
+            <p style={{ color: '#fff', fontWeight: 800, fontSize: 22 }}>Recuperar contraseña</p>
             <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, marginTop: 8 }}>Confirma tu identidad para continuar</p>
           </div>
 
@@ -82,13 +82,13 @@ export default function Recuperar() {
                 </div>
                 <p style={{ color: '#E0F2FE', fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Solicitud procesada</p>
                 <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, lineHeight: 1.6 }}>
-                  Si los datos coinciden con una cuenta registrada, recibiras un correo con instrucciones para restablecer tu contrasena. Revisa tu bandeja de entrada y la carpeta de spam.
+                  Si los datos coinciden con una cuenta registrada, recibirás un correo con instrucciones para restablecer tu contraseña. Revisa tu bandeja de entrada y la carpeta de spam.
                 </p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <span style={labelStyle}>Correo electronico</span>
+                  <span style={labelStyle}>Correo electrónico</span>
                   <div style={{ position: 'relative' }}>
                     <Mail size={16} color={COLOR_TEXTO_SEC} style={{ position: 'absolute', left: 14, top: 14 }} />
                     <input
@@ -135,7 +135,7 @@ export default function Recuperar() {
             )}
 
             <button onClick={() => window.location.href = '/login'} style={{ width: '100%', marginTop: 14, backgroundColor: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px', fontSize: 13, color: COLOR_TEXTO_SEC, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <ArrowLeft size={14} /> Volver al inicio de sesion
+              <ArrowLeft size={14} /> Volver al inicio de sesión
             </button>
           </div>
 

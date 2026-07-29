@@ -13,7 +13,7 @@ export async function GET() {
   const payload = await verificarTokenAdmin(token);
 
   if (!payload) {
-    return NextResponse.json({ error: 'Sesion invalida.' }, { status: 401 });
+    return NextResponse.json({ error: 'Sesión inválida.' }, { status: 401 });
   }
 
   return NextResponse.json({ email: payload.email, rol: payload.rol });

@@ -27,14 +27,14 @@ export default function NuevaContrasena() {
 
   async function handleActualizar() {
     setError(null);
-    if (password.length < 8) { setError('La contrasena debe tener al menos 8 caracteres.'); return; }
-    if (password !== confirmar) { setError('Las contrasenas no coinciden.'); return; }
+    if (password.length < 8) { setError('La contraseña debe tener al menos 8 caracteres.'); return; }
+    if (password !== confirmar) { setError('Las contraseñas no coinciden.'); return; }
 
     setCargando(true);
     const { error: authError } = await supabase.auth.updateUser({ password });
 
     if (authError) {
-      setError('No se pudo actualizar la contrasena. El enlace puede haber expirado.');
+      setError('No se pudo actualizar la contraseña. El enlace puede haber expirado.');
       setCargando(false);
       return;
     }
@@ -72,33 +72,33 @@ export default function NuevaContrasena() {
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
               <Image src="/logo.png" alt="NotiLoto" width={56} height={56} style={{ borderRadius: 14, objectFit: 'cover' }} />
             </div>
-            <p style={{ color: '#fff', fontWeight: 800, fontSize: 22 }}>Nueva contrasena</p>
+            <p style={{ color: '#fff', fontWeight: 800, fontSize: 22 }}>Nueva contraseña</p>
           </div>
 
           <div style={{ padding: 24 }}>
             {sesionValida === false ? (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <p style={{ color: '#ff6b6b', fontSize: 14 }}>El enlace de recuperacion no es valido o expiro.</p>
+                <p style={{ color: '#ff6b6b', fontSize: 14 }}>El enlace de recuperación no es válido o expiró.</p>
                 <button onClick={() => window.location.href = '/recuperar'} style={{ marginTop: 16, backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '12px 28px', color: '#1A1500', fontWeight: 700, cursor: 'pointer' }}>
                   Solicitar nuevo enlace
                 </button>
               </div>
             ) : listo ? (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <p style={{ color: '#10B981', fontSize: 15, fontWeight: 600 }}>Contrasena actualizada</p>
-                <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, marginTop: 8 }}>Te redirigiremos para que inicies sesion con tu nueva contrasena...</p>
+                <p style={{ color: '#10B981', fontSize: 15, fontWeight: 600 }}>Contraseña actualizada</p>
+                <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, marginTop: 8 }}>Te redirigiremos para que inicies sesión con tu nueva contraseña...</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <span style={labelStyle}>Nueva contrasena</span>
+                  <span style={labelStyle}>Nueva contraseña</span>
                   <div style={{ position: 'relative' }}>
                     <Lock size={16} color={COLOR_TEXTO_SEC} style={{ position: 'absolute', left: 14, top: 14 }} />
                     <input
                       type={verPass ? 'text' : 'password'}
                       name="new-password"
                       autoComplete="new-password"
-                      placeholder="Minimo 8 caracteres"
+                      placeholder="Mínimo 8 caracteres"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       style={inputStyle}
@@ -110,14 +110,14 @@ export default function NuevaContrasena() {
                 </div>
 
                 <div>
-                  <span style={labelStyle}>Confirmar contrasena</span>
+                  <span style={labelStyle}>Confirmar contraseña</span>
                   <div style={{ position: 'relative' }}>
                     <Lock size={16} color={COLOR_TEXTO_SEC} style={{ position: 'absolute', left: 14, top: 14 }} />
                     <input
                       type={verPass ? 'text' : 'password'}
                       name="confirm-password"
                       autoComplete="new-password"
-                      placeholder="Repite la contrasena"
+                      placeholder="Repite la contraseña"
                       value={confirmar}
                       onChange={e => setConfirmar(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleActualizar()}
@@ -133,7 +133,7 @@ export default function NuevaContrasena() {
                 )}
 
                 <button onClick={handleActualizar} disabled={cargando} style={{ width: '100%', backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12, padding: '14px', fontSize: 15, fontWeight: 700, color: '#1A1500', cursor: cargando ? 'not-allowed' : 'pointer', opacity: cargando ? 0.6 : 1 }}>
-                  {cargando ? 'Actualizando...' : 'Actualizar contrasena'}
+                  {cargando ? 'Actualizando...' : 'Actualizar contraseña'}
                 </button>
               </div>
             )}

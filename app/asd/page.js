@@ -82,7 +82,7 @@ export default function AdminLogin() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             <div>
-              <span style={labelStyle}>Correo electronico</span>
+              <span style={labelStyle}>Correo electrónico</span>
               <div style={{ position: 'relative' }}>
                 <Mail size={16} color="#555" style={{ position: 'absolute', left: 14, top: 14 }} />
                 <input
@@ -96,12 +96,12 @@ export default function AdminLogin() {
             </div>
 
             <div>
-              <span style={labelStyle}>Contrasena</span>
+              <span style={labelStyle}>Contraseña</span>
               <div style={{ position: 'relative' }}>
                 <Lock size={16} color="#555" style={{ position: 'absolute', left: 14, top: 14 }} />
                 <input
                   type={verPass ? 'text' : 'password'}
-                  placeholder="Tu contrasena"
+                  placeholder="Tu contraseña"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   style={{ ...inputStyle, paddingRight: 44 }}

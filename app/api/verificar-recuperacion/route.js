@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabaseAdmin';
 
-const MENSAJE_GENERICO = { ok: true, mensaje: 'Si los datos coinciden con una cuenta registrada, recibiras un correo con instrucciones.' };
+const MENSAJE_GENERICO = { ok: true, mensaje: 'Si los datos coinciden con una cuenta registrada, recibirás un correo con instrucciones.' };
 
 export async function POST(request) {
   try {

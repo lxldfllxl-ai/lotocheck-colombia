@@ -31,7 +31,7 @@ export default function EscanerBoleto({ onBoletosDetectados, onCerrar }) {
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
       console.error('Error camara:', err);
-      setErrorMsg('No se pudo acceder a la camara. Verifica los permisos del navegador.');
+      setErrorMsg('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
       setFase('error');
     }
   }

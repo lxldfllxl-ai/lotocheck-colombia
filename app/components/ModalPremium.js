@@ -100,7 +100,7 @@ export default function ModalPremium({ onClose }) {
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <Crown size={32} color={COLOR_ACENTO} style={{ marginBottom: 10 }} />
           <p style={{ color: '#fff', fontSize: 24, fontWeight: 800 }}>Elige tu plan</p>
-          <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, marginTop: 6 }}>Guarda mas números y recibe notificaciones sin perderte ningun resultado.</p>
+          <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, marginTop: 6 }}>Guarda más números y recibe notificaciones sin perderte ningún resultado.</p>
         </div>
 
         {cargando ? (

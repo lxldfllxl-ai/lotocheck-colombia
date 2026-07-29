@@ -61,8 +61,8 @@ export default function AdminPanel() {
             )}
             <div onClick={() => setVista('resultados')} style={card}>
               <Ticket size={28} color="#C41230" style={{ marginBottom: 12 }} />
-              <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Resultados de loterias</p>
-              <p style={{ color: '#555', fontSize: 13 }}>Actualiza numeros ganadores por categoria.</p>
+              <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Resultados de loterías</p>
+              <p style={{ color: '#555', fontSize: 13 }}>Actualiza números ganadores por categoría.</p>
             </div>
             {sesion?.rol === 'admin' && (
               <div onClick={() => setVista('juegos')} style={card}>
@@ -146,7 +146,7 @@ function PanelPrecios() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div><span style={labelStyle}>Nombre del plan</span><input type="text" value={config[p.nombre] || ''} onChange={e => setConfig({ ...config, [p.nombre]: e.target.value })} style={inputStyle} /></div>
               <div><span style={labelStyle}>Precio mensual</span><input type="text" value={p.precioFijo || config[p.precio] || ''} disabled={!!p.precioFijo} onChange={e => setConfig({ ...config, [p.precio]: e.target.value })} style={{ ...inputStyle, opacity: p.precioFijo ? 0.4 : 1, cursor: p.precioFijo ? 'not-allowed' : 'text' }} /></div>
-              <div><span style={labelStyle}>Limite de boletos</span>{p.limite ? <input type="number" min="1" value={config[p.limite] || ''} onChange={e => setConfig({ ...config, [p.limite]: e.target.value })} style={inputStyle} /> : <input type="text" value="Ilimitado" disabled style={{ ...inputStyle, opacity: 0.4, cursor: 'not-allowed' }} />}</div>
+              <div><span style={labelStyle}>Límite de boletos</span>{p.limite ? <input type="number" min="1" value={config[p.limite] || ''} onChange={e => setConfig({ ...config, [p.limite]: e.target.value })} style={inputStyle} /> : <input type="text" value="Ilimitado" disabled style={{ ...inputStyle, opacity: 0.4, cursor: 'not-allowed' }} />}</div>
             </div>
           </div>
         ))}
@@ -396,7 +396,7 @@ function PanelJuegos() {
             <div><span style={labelStyle}>Nombre</span><input type="text" placeholder="Ej: Loteria de Bogota" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} style={inputStyle} /></div>
             <div><span style={labelStyle}>Categoria</span><select value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })} style={inputStyle}>{categorias.map(c => <option key={c} style={{ backgroundColor: '#0A0A0A' }}>{c}</option>)}</select></div>
             <div><span style={labelStyle}>Tipo de juego</span><select value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })} style={inputStyle}>{tipos.map(t => <option key={t} value={t} style={{ backgroundColor: '#0A0A0A' }}>{t}</option>)}</select></div>
-            <div><span style={labelStyle}>Dia del sorteo</span><input type="text" placeholder="Ej: Viernes" value={form.dia_sorteo} onChange={e => setForm({ ...form, dia_sorteo: e.target.value })} style={inputStyle} /></div>
+            <div><span style={labelStyle}>Día del sorteo</span><input type="text" placeholder="Ej: Viernes" value={form.dia_sorteo} onChange={e => setForm({ ...form, dia_sorteo: e.target.value })} style={inputStyle} /></div>
             <div><span style={labelStyle}>Horario</span><input type="text" placeholder="Ej: 11:00 PM" value={form.horario} onChange={e => setForm({ ...form, horario: e.target.value })} style={inputStyle} /></div>
             <div><span style={labelStyle}>Canal en vivo</span><input type="text" placeholder="Ej: Telecaribe, Canal Capital" value={form.canal_en_vivo} onChange={e => setForm({ ...form, canal_en_vivo: e.target.value })} style={inputStyle} /></div>
             <div><span style={labelStyle}>Operador</span><input type="text" placeholder="Ej: Loteria de Bogota" value={form.operador} onChange={e => setForm({ ...form, operador: e.target.value })} style={inputStyle} /></div>
@@ -426,7 +426,7 @@ function PanelJuegos() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div>
                 <p style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>Plan de premios</p>
-                <p style={{ color: '#555', fontSize: 12, marginTop: 2 }}>Define cada premio: nombre, cantidad de numeros ganadores, monto y como se verifica.</p>
+                <p style={{ color: '#555', fontSize: 12, marginTop: 2 }}>Define cada premio: nombre, cantidad de números ganadores, monto y cómo se verifica.</p>
               </div>
               <button onClick={agregarPremio} style={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8, padding: '8px 12px', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Plus size={13} /> Premio
@@ -447,7 +447,7 @@ function PanelJuegos() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
                     <div><span style={labelStyle}>Nombre</span><input type="text" placeholder="Ej: Premio mayor" value={p.nombre} onChange={e => actualizarPremio(idx, 'nombre', e.target.value)} style={inputStyle} /></div>
                     <div><span style={labelStyle}>Tipo</span><select value={p.tipo} onChange={e => actualizarPremio(idx, 'tipo', e.target.value)} style={inputStyle}>{tiposPremio.map(t => <option key={t.value} value={t.value} style={{ backgroundColor: '#0A0A0A' }}>{t.label}</option>)}</select></div>
-                    <div><span style={labelStyle}>Cantidad (numeros ganadores)</span><input type="number" min="1" placeholder="2" value={p.cantidad_ganadores ?? ''} onChange={e => actualizarPremio(idx, 'cantidad_ganadores', e.target.value)} style={inputStyle} /></div>
+                    <div><span style={labelStyle}>Cantidad (números ganadores)</span><input type="number" min="1" placeholder="2" value={p.cantidad_ganadores ?? ''} onChange={e => actualizarPremio(idx, 'cantidad_ganadores', e.target.value)} style={inputStyle} /></div>
                     <div><span style={labelStyle}>Premio (monto)</span><input type="text" placeholder="Ej: $16.000.000.000" value={p.premio} onChange={e => actualizarPremio(idx, 'premio', e.target.value)} style={inputStyle} /></div>
                     <div><span style={labelStyle}>Cifras a comparar</span><input type="number" min="1" max="6" placeholder="4" value={p.cifras ?? ''} onChange={e => actualizarPremio(idx, 'cifras', e.target.value)} style={inputStyle} /></div>
                     <div style={{ gridColumn: '1 / -1' }}><span style={labelStyle}>Descripcion</span><input type="text" placeholder="Ej: 4 cifras + serie exacta" value={p.descripcion} onChange={e => actualizarPremio(idx, 'descripcion', e.target.value)} style={inputStyle} /></div>
@@ -623,7 +623,7 @@ function PanelResultados() {
   async function guardarResultado(juego) {
     setGuardando(juego.id); setMensaje(prev => ({ ...prev, [juego.id]: null }));
     const r = resultados[juego.id];
-    if (!r.numero) { setMensaje(prev => ({ ...prev, [juego.id]: { tipo: 'error', texto: 'El numero del sorteo es obligatorio.' } })); setGuardando(null); return; }
+    if (!r.numero) { setMensaje(prev => ({ ...prev, [juego.id]: { tipo: 'error', texto: 'El número del sorteo es obligatorio.' } })); setGuardando(null); return; }
     if (!r.fecha) { setMensaje(prev => ({ ...prev, [juego.id]: { tipo: 'error', texto: 'La fecha del sorteo es obligatoria.' } })); setGuardando(null); return; }
 
     // Construir premios para enviar (siempre modo tier)
@@ -775,7 +775,7 @@ function PanelResultados() {
   return (
     <div>
       <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Actualizar resultados</p>
-      <p style={{ color: '#555', fontSize: 13, marginBottom: 24 }}>Toca un juego para abrir y registrar el resultado del sorteo. Ingresa el <strong style={{ color: '#888' }}>numero del sorteo</strong> y la <strong style={{ color: '#888' }}>fecha</strong>, luego registra los numeros ganadores en cada premio del plan (incluye premio mayor y secos). Las notificaciones se envian automaticamente.</p>
+      <p style={{ color: '#555', fontSize: 13, marginBottom: 24 }}>Toca un juego para abrir y registrar el resultado del sorteo. Ingresa el <strong style={{ color: '#888' }}>número del sorteo</strong> y la <strong style={{ color: '#888' }}>fecha</strong>, luego registra los números ganadores en cada premio del plan (incluye premio mayor y secos). Las notificaciones se envían automáticamente.</p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, marginBottom: 24, alignItems: 'end' }}>
         <div>
           <label style={{ display: 'block', color: '#AAA', fontSize: 12, marginBottom: 6 }}>Correo de prueba</label>
@@ -806,7 +806,7 @@ function PanelResultados() {
                     <div onClick={() => setExpandido(abierto ? null : j.id)} style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
                       <div>
                         <p style={{ color: '#E0E0E0', fontSize: 14, fontWeight: 600 }}>{j.nombre}</p>
-                        {r.numero && <p style={{ color: '#555', fontSize: 12, marginTop: 2 }}>Ultimo: {r.numero}{r.serie ? ` - ${r.serie}` : ''}</p>}
+                        {r.numero && <p style={{ color: '#555', fontSize: 12, marginTop: 2 }}>Último: {r.numero}{r.serie ? ` - ${r.serie}` : ''}</p>}
                       </div>
                       <span style={{ color: '#555', fontSize: 13 }}>{abierto ? '−' : '+'}</span>
                     </div>
@@ -814,7 +814,7 @@ function PanelResultados() {
                       <div style={{ padding: '0 18px 18px' }}>
                         {/* Datos principales: numero del sorteo + fecha */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
-                          <div><span style={labelStyle}>Numero del sorteo *</span><input type="text" maxLength={j.numero_digits || 4} value={r.numero} onChange={e => actualizarCampo(j.id, 'numero', e.target.value)} style={inputStyle} /></div>
+                          <div><span style={labelStyle}>Número del sorteo *</span><input type="text" maxLength={j.numero_digits || 4} value={r.numero} onChange={e => actualizarCampo(j.id, 'numero', e.target.value)} style={inputStyle} /></div>
                           {j.usa_signo && <div><span style={labelStyle}>Signo zodiacal</span><input type="text" value={r.signo} onChange={e => actualizarCampo(j.id, 'signo', e.target.value)} style={inputStyle} /></div>}
                           {j.usa_quinta && <div><span style={labelStyle}>Quinta</span><input type="text" value={r.quinta} onChange={e => actualizarCampo(j.id, 'quinta', e.target.value)} style={inputStyle} /></div>}
                           <div><span style={labelStyle}>Fecha del sorteo *</span><input type="date" value={r.fecha} onChange={e => actualizarCampo(j.id, 'fecha', e.target.value)} style={{ ...inputStyle, colorScheme: 'dark' }} /></div>
@@ -834,7 +834,7 @@ function PanelResultados() {
                                   </div>
                                   {(tier.ganadores || []).map((g, gIdx) => (
                                     <div key={gIdx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                                      <input type="text" placeholder="Numero" maxLength={j.numero_digits || 4} value={g.numero} onChange={e => actualizarGanador(j.id, tierIdx, gIdx, 'numero', e.target.value)} style={{ ...inputStyle, width: 100 }} />
+                                      <input type="text" placeholder="Número" maxLength={j.numero_digits || 4} value={g.numero} onChange={e => actualizarGanador(j.id, tierIdx, gIdx, 'numero', e.target.value)} style={{ ...inputStyle, width: 100 }} />
                                       {j.serie_digits > 0 && <input type="text" placeholder="Serie" value={g.serie} onChange={e => actualizarGanador(j.id, tierIdx, gIdx, 'serie', e.target.value)} style={{ ...inputStyle, width: 80 }} />}
                                       <input type="text" placeholder="Premio" value={g.premio} onChange={e => actualizarGanador(j.id, tierIdx, gIdx, 'premio', e.target.value)} style={{ ...inputStyle, flex: 1 }} />
                                       {(tier.ganadores || []).length > 1 && (
@@ -898,7 +898,7 @@ function PanelUsuarios() {
   async function crearUsuario() {
     setError(null);
     if (!form.email || !form.password) { setError('Completa todos los campos.'); return; }
-    if (form.password.length < 8) { setError('La contrasena debe tener al menos 8 caracteres.'); return; }
+    if (form.password.length < 8) { setError('La contraseña debe tener al menos 8 caracteres.'); return; }
 
     setCreando(true);
     try {
@@ -950,7 +950,7 @@ function PanelUsuarios() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {[
               { label: 'Correo', type: 'email', key: 'email', placeholder: 'usuario@notiloto.com' },
-              { label: 'Contrasena', type: 'text', key: 'password', placeholder: 'Contrasena temporal' },
+              { label: 'Contraseña', type: 'text', key: 'password', placeholder: 'Contraseña temporal' },
             ].map(f => (
               <div key={f.key}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, display: 'block' }}>{f.label}</span>

@@ -39,12 +39,13 @@ export default function Home() {
   const [mostrarNotificacionesPanel, setMostrarNotificacionesPanel] = useState(false);
   const [mostrarBannerPush, setMostrarBannerPush] = useState(false); // Banner para sugerir activar push en este dispositivo
 
-  // Vista de loterias / juegos
+  // Vista de loterías / juegos
   const [juegoDetalle, setJuegoDetalle] = useState(null); // juego seleccionado para ver detalle
-  const [historicoSorteos, setHistoricoSorteos] = useState([]); // sorteos historicos del juego seleccionado
+  const [historicoSorteos, setHistoricoSorteos] = useState([]); // sorteos históricos del juego seleccionado
   const [cargandoHistorico, setCargandoHistorico] = useState(false);
-  const [verHistorico, setVerHistorico] = useState(false); // toggle para mostrar historico
-  const [historicoVisible, setHistoricoVisible] = useState(5); // cuantos sorteos mostrar (paginacion)
+  const [verHistorico, setVerHistorico] = useState(false); // toggle para mostrar histórico
+  const [historicoVisible, setHistoricoVisible] = useState(5); // cuántos sorteos mostrar (paginación)
+  const [verPlanPremios, setVerPlanPremios] = useState(false); // toggle para mostrar plan de premios
 
   // Cola de boletos escaneados con estado individual
   const [boletosEscaneados, setBoletosEscaneados] = useState([]); // [{...datos, estado:'pendiente'|'guardado'|'seleccionado'}]
@@ -292,7 +293,7 @@ export default function Home() {
     setBoletosEscaneados(normalizados);
     setIndiceSeleccionado(null);
     setTab('verificar');
-    // Seleccionar el primero automaticamente
+    // Seleccionar el primero automáticamente
     setTimeout(() => seleccionarBoletoEscaneado_directo(normalizados, 0), 100);
   }
 
@@ -331,7 +332,7 @@ export default function Home() {
     if (!fecha) return null;
     const corte = '2026-06-01';
     return fecha < corte ? {
-      titulo: 'Resultados disponibles a partir de Junio 2026',
+      titulo: 'Resultados disponibles a partir de junio de 2026',
       mensaje: ''
     } : null;
   }
@@ -375,7 +376,7 @@ export default function Home() {
     });
 
     if (duplicado) {
-      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde aqui si necesitas actualizarlo.', mostrarEditar: true, boletoDuplicadoId: duplicado.id });
+      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este número anteriormente', premio: null, mensaje: 'Puedes editarlo desde aquí si necesitas actualizarlo.', mostrarEditar: true, boletoDuplicadoId: duplicado.id });
       return;
     }
 
@@ -423,7 +424,7 @@ export default function Home() {
 
     const duplicado = encontrarBoletoDuplicado({ loteria: juegoSeleccionado.nombre, numero, serie, fechaSorteo });
     if (duplicado) {
-      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde aqui si necesitas actualizarlo.', mostrarEditar: true, boletoDuplicadoId: duplicado.id });
+      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este número anteriormente', premio: null, mensaje: 'Puedes editarlo desde aquí si necesitas actualizarlo.', mostrarEditar: true, boletoDuplicadoId: duplicado.id });
       return;
     }
 
@@ -451,9 +452,9 @@ export default function Home() {
         tipoDisplay = detalle.tipo?.startsWith('seco') ? 'seco' : 'mayor';
         tituloDisplay = detalle.tipo === 'mayor' ? '¡Premio mayor!' :
                         detalle.tipo === 'mayor_sin_serie' ? '¡Premio mayor! (sin serie)' :
-                        detalle.tipo === 'seco_3' ? '¡Seco! Ultimas 3 cifras' :
-                        detalle.tipo === 'seco_2' ? '¡Seco! Ultimas 2 cifras' :
-                        detalle.tipo === 'seco_1' ? '¡Seco! Ultima cifra' : '¡Numero ganador!';
+                        detalle.tipo === 'seco_3' ? '¡Seco! Últimas 3 cifras' :
+                        detalle.tipo === 'seco_2' ? '¡Seco! Últimas 2 cifras' :
+                        detalle.tipo === 'seco_1' ? '¡Seco! Última cifra' : '¡Número ganador!';
       } else {
         tipoDisplay = 'nada';
         tituloDisplay = 'Sin premio esta vez';
@@ -461,12 +462,12 @@ export default function Home() {
     } else {
       const motivo = verificacion.detalle?.motivo;
       tituloDisplay = motivo === 'sorteo_futuro' ? 'Sorteo pendiente de realizarse' :
-                      motivo === 'sin_resultado_aun' ? 'Resultado aun no disponible' : 'Pendiente de sorteo';
+                      motivo === 'sin_resultado_aun' ? 'Resultado aún no disponible' : 'Pendiente de sorteo';
     }
 
     setResultado({ tipo: tipoDisplay, titulo: tituloDisplay, premio: verificacion.premio, sorteo: verificacion.detalle?.sorteo, esHistorico: verificacion.detalle?.esHistorico });
 
-    // Guardar automaticamente
+    // Guardar automáticamente
     setGuardando(true);
 
     const resultadoFinal = verificacion.resultado;
@@ -490,7 +491,7 @@ export default function Home() {
       if (indiceSeleccionado !== null) {
         setBoletosEscaneados(prev => prev.map((b, i) => i === indiceSeleccionado ? { ...b, estado: 'guardado', resultadoVerificacion: { tipo: tipoDisplay, titulo: tituloDisplay, premio: premioFinal } } : b));
       }
-      setResultado({ tipo: 'success', titulo: '✓ Guardado automaticamente', premio: null, mensaje: null });
+      setResultado({ tipo: 'success', titulo: '✓ Guardado automáticamente', premio: null, mensaje: null });
     }
   }
 
@@ -525,9 +526,9 @@ export default function Home() {
         tipoDisplay = detalle.tipo?.startsWith('seco') ? 'seco' : 'mayor';
         tituloDisplay = detalle.tipo === 'mayor' ? '¡Premio mayor!' :
                         detalle.tipo === 'mayor_sin_serie' ? '¡Premio mayor! (sin serie)' :
-                        detalle.tipo === 'seco_3' ? '¡Seco! Ultimas 3 cifras' :
-                        detalle.tipo === 'seco_2' ? '¡Seco! Ultimas 2 cifras' :
-                        detalle.tipo === 'seco_1' ? '¡Seco! Ultima cifra' : '¡Numero ganador!';
+                        detalle.tipo === 'seco_3' ? '¡Seco! Últimas 3 cifras' :
+                        detalle.tipo === 'seco_2' ? '¡Seco! Últimas 2 cifras' :
+                        detalle.tipo === 'seco_1' ? '¡Seco! Última cifra' : '¡Número ganador!';
       } else {
         tipoDisplay = 'nada';
         tituloDisplay = 'Sin premio esta vez';
@@ -535,7 +536,7 @@ export default function Home() {
     } else {
       const motivo = verificacion.detalle?.motivo;
       tituloDisplay = motivo === 'sorteo_futuro' ? 'Sorteo pendiente de realizarse' :
-                      motivo === 'sin_resultado_aun' ? 'Resultado aun no disponible' : 'Pendiente de sorteo';
+                      motivo === 'sin_resultado_aun' ? 'Resultado aún no disponible' : 'Pendiente de sorteo';
     }
 
     setResultado({ tipo: tipoDisplay, titulo: tituloDisplay, premio: verificacion.premio, sorteo: verificacion.detalle?.sorteo, esHistorico: verificacion.detalle?.esHistorico, mensaje: null });
@@ -545,7 +546,7 @@ export default function Home() {
 
     const duplicado = encontrarBoletoDuplicado({ loteria: juegoSeleccionado.nombre, numero, serie, fechaSorteo });
     if (duplicado) {
-      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este numero anteriormente', premio: null, mensaje: 'Puedes editarlo desde aqui si necesitas actualizarlo.', mostrarEditar: true, boletoDuplicadoId: duplicado.id });
+      setResultado({ tipo: 'warning', titulo: 'Ya guardaste este número anteriormente', premio: null, mensaje: 'Puedes editarlo desde aquí si necesitas actualizarlo.', mostrarEditar: true, boletoDuplicadoId: duplicado.id });
       return;
     }
 
@@ -572,7 +573,7 @@ export default function Home() {
       if (indiceSeleccionado !== null) {
         setBoletosEscaneados(prev => prev.map((b, i) => i === indiceSeleccionado ? { ...b, estado: 'guardado', resultadoVerificacion: { tipo: tipoDisplay, titulo: tituloDisplay, premio: premioFinal } } : b));
       }
-      setResultado({ tipo: 'success', titulo: '✓ Guardado automaticamente', premio: null, mensaje: null });
+      setResultado({ tipo: 'success', titulo: '✓ Guardado automáticamente', premio: null, mensaje: null });
     }
   }
 
@@ -607,7 +608,7 @@ export default function Home() {
     setGuardando(false);
     if (!error && data) {
       setBoletos(prev => [data, ...prev]);
-      setResultado({ tipo: 'success', titulo: '✓ Guardado automaticamente', premio: null, mensaje: null });
+      setResultado({ tipo: 'success', titulo: '✓ Guardado automáticamente', premio: null, mensaje: null });
     }
   }
 
@@ -1027,7 +1028,7 @@ export default function Home() {
           {!usuario ? (
             <div onClick={() => window.location.href = '/login'} style={{ marginTop: 14, backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <Crown size={14} color={COLOR_ACENTO} />
-              <p style={{ flex: 1, fontSize: 13, color: COLOR_TEXTO_SEC }}>Inicia sesion para guardar boletos y recibir notificaciones</p>
+              <p style={{ flex: 1, fontSize: 13, color: COLOR_TEXTO_SEC }}>Inicia sesión para guardar boletos y recibir notificaciones</p>
               <ChevronRight size={12} color={COLOR_TEXTO_SEC} />
             </div>
           ) : (
@@ -1066,7 +1067,7 @@ export default function Home() {
                 )}
               </div>
               <div>
-                <p style={{ color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 20 }}>📰 Ultimas noticias</p>
+                <p style={{ color: '#fff', fontSize: 24, fontWeight: 700, marginBottom: 20 }}>📰 Últimas noticias</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
                   {cargandoNoticias ? (
                     <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14 }}>Cargando noticias...</p>
@@ -1101,7 +1102,7 @@ export default function Home() {
               {juegoDetalle ? (
                 <div>
                   <button onClick={cerrarDetalleJuego} style={{ background: 'none', border: 'none', color: COLOR_TEXTO_SEC, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, padding: 0 }}>
-                    <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} /> Volver a loterias
+                    <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} /> Volver a loterías
                   </button>
 
                   {/* Info del juego */}
@@ -1123,7 +1124,7 @@ export default function Home() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
                       {juegoDetalle.dia_sorteo && (
                         <div style={{ backgroundColor: COLOR_FONDO, borderRadius: 10, padding: '12px 14px' }}>
-                          <p style={{ fontSize: 11, color: COLOR_TEXTO_TERC, marginBottom: 4 }}>Dia del sorteo</p>
+                          <p style={{ fontSize: 11, color: COLOR_TEXTO_TERC, marginBottom: 4 }}>Día del sorteo</p>
                           <p style={{ fontSize: 14, fontWeight: 700, color: '#E0F2FE' }}>{juegoDetalle.dia_sorteo}</p>
                         </div>
                       )}
@@ -1142,18 +1143,18 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Ultimo resultado guardado */}
+                  {/* Último resultado guardado */}
                   {(() => {
                     const ultimo = resultadosReales.find(r => r.loteria.toLowerCase() === juegoDetalle.nombre.toLowerCase());
                     if (!ultimo) return (
                       <div style={{ ...card, textAlign: 'center', padding: 32 }}>
-                        <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14 }}>No hay resultados guardados para este juego aun.</p>
+                        <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14 }}>No hay resultados guardados para este juego aún.</p>
                       </div>
                     );
                     return (
                       <div style={{ ...card, marginBottom: 20 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                          <span style={label}>Ultimo resultado</span>
+                          <span style={label}>Último resultado</span>
                           <span style={{ fontSize: 10, backgroundColor: '#0a5a4a', color: '#10B981', padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>Sorteo {ultimo.numero} · {ultimo.fecha}</span>
                         </div>
                         {(() => {
@@ -1213,6 +1214,45 @@ export default function Home() {
                     );
                   })()}
 
+                  {/* Plan de premios */}
+                  {juegoDetalle.plan_premios && (
+                    <div style={{ marginBottom: 20 }}>
+                      <button onClick={() => setVerPlanPremios(v => !v)} style={{ width: '100%', background: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '14px 18px', color: COLOR_TEXTO_SEC, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        Ver plan de premios
+                        <ChevronRight size={16} style={{ transform: verPlanPremios ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+                      </button>
+                      {verPlanPremios && (
+                        <div style={{ marginTop: 14, backgroundColor: COLOR_FONDO, borderRadius: 12, padding: '16px 18px', border: `1px solid ${COLOR_BORDE}` }}>
+                          {(() => {
+                            const plan = typeof juegoDetalle.plan_premios === 'string'
+                              ? (() => { try { return JSON.parse(juegoDetalle.plan_premios); } catch { return null; } })()
+                              : juegoDetalle.plan_premios;
+                            if (!plan) return <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13 }}>No hay información del plan de premios disponible.</p>;
+                            const tiers = Array.isArray(plan) ? plan : (plan.tiers || plan.premios || []);
+                            if (tiers.length === 0) return <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, whiteSpace: 'pre-wrap' }}>{typeof plan === 'string' ? plan : 'No hay información detallada del plan de premios.'}</p>;
+                            return (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                {tiers.map((tier, idx) => {
+                                  const colorTipo = tier.tipo === 'mayor' ? COLOR_ACENTO : tier.tipo === 'seco' ? '#F59E0B' : tier.tipo === 'aproximacion' ? '#10B981' : tier.tipo === 'especial' ? '#8B5CF6' : '#555';
+                                  return (
+                                    <div key={idx} style={{ backgroundColor: COLOR_CARD, borderRadius: 8, padding: '10px 12px', borderLeft: `3px solid ${colorTipo}` }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                        <span style={{ backgroundColor: colorTipo, color: '#fff', padding: '2px 8px', borderRadius: 6, fontWeight: 700, fontSize: 11, flexShrink: 0 }}>{tier.tier_nombre || tier.nombre || tier.tipo}</span>
+                                        {tier.premio && <span style={{ color: COLOR_ACENTO, fontSize: 12, fontWeight: 700, marginLeft: 'auto' }}>{tier.premio}</span>}
+                                      </div>
+                                      {tier.descripcion && <p style={{ color: COLOR_TEXTO_SEC, fontSize: 12, marginTop: 4 }}>{tier.descripcion}</p>}
+                                      {tier.cantidad && <p style={{ color: COLOR_TEXTO_TERC, fontSize: 11, marginTop: 2 }}>{tier.cantidad} premio(s)</p>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Resultados anteriores */}
                   <div>
                     <button onClick={() => setVerHistorico(v => !v)} style={{ width: '100%', background: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '14px 18px', color: COLOR_TEXTO_SEC, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1222,7 +1262,7 @@ export default function Home() {
                     {verHistorico && (
                       <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {cargandoHistorico ? (
-                          <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, textAlign: 'center', padding: 24 }}>Cargando historico...</p>
+                          <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, textAlign: 'center', padding: 24 }}>Cargando histórico...</p>
                         ) : historicoSorteos.length === 0 ? (
                           <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, textAlign: 'center', padding: 24 }}>No hay sorteos anteriores registrados.</p>
                         ) : (
@@ -1284,7 +1324,7 @@ export default function Home() {
                             })}
                             {historicoVisible < historicoSorteos.length && (
                               <button onClick={() => setHistoricoVisible(v => v + 5)} style={{ width: '100%', background: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px 18px', color: COLOR_ACENTO, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                                Cargar mas resultados
+                                Cargar más resultados
                               </button>
                             )}
                           </>
@@ -1295,8 +1335,8 @@ export default function Home() {
                 </div>
               ) : (
                 <div>
-                  <span style={label}>Todas las loterias y juegos</span>
-                  <p style={{ color: COLOR_TEXTO_TERC, fontSize: 13, marginBottom: 20 }}>Selecciona un juego para ver dias, horarios, donde ver en vivo y resultados.</p>
+                  <span style={label}>Todas las loterías y juegos</span>
+                  <p style={{ color: COLOR_TEXTO_TERC, fontSize: 13, marginBottom: 20 }}>Selecciona un juego para ver días, horarios, dónde ver en vivo y resultados.</p>
                   {juegos.length === 0 ? (
                     <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, textAlign: 'center', padding: 40 }}>Cargando juegos...</p>
                   ) : (
@@ -1307,10 +1347,10 @@ export default function Home() {
                           <button key={j.id} onClick={() => abrirDetalleJuego(j)} style={{ ...card, textAlign: 'left', cursor: 'pointer', border: `1px solid ${COLOR_BORDE}`, transition: 'border-color 0.2s' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                               {j.logo_url ? (
-                                <img src={j.logo_url} alt={j.nombre} style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover' }} />
+                                <img src={j.logo_url} alt={j.nombre} style={{ width: 66, height: 66, borderRadius: 10, objectFit: 'cover' }} />
                               ) : (
-                                <div style={{ width: 44, height: 44, backgroundColor: COLOR_FONDO, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  <Ticket size={20} color={COLOR_ACENTO} />
+                                <div style={{ width: 66, height: 66, backgroundColor: COLOR_FONDO, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Ticket size={28} color={COLOR_ACENTO} />
                                 </div>
                               )}
                               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1375,7 +1415,7 @@ export default function Home() {
                       <Camera size={20} color={COLOR_ACENTO} />
                     </div>
                     <p style={{ color: '#E0F2FE', fontWeight: 600, fontSize: 14 }}>Escanear boleto con IA</p>
-                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 12, marginTop: 4 }}>Detecta numero, serie y fracciones automaticamente</p>
+                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 12, marginTop: 4 }}>Detecta número, serie y fracciones automáticamente</p>
                   </div>
                 ) : (
                   <div onClick={() => window.location.href = '/login'} style={{ border: `1.5px dashed ${COLOR_BORDE}`, borderRadius: 16, padding: '20px', textAlign: 'center', backgroundColor: COLOR_CARD, cursor: 'pointer' }}>
@@ -1383,7 +1423,7 @@ export default function Home() {
                       <Camera size={20} color={COLOR_TEXTO_TERC} />
                     </div>
                     <p style={{ color: COLOR_TEXTO_SEC, fontWeight: 600, fontSize: 14 }}>Escanear boleto con IA</p>
-                    <p style={{ color: COLOR_TEXTO_TERC, fontSize: 12, marginTop: 4 }}>Inicia sesion para usar esta funcion</p>
+                    <p style={{ color: COLOR_TEXTO_TERC, fontSize: 12, marginTop: 4 }}>Inicia sesión para usar esta función</p>
                   </div>
                 )}
 
@@ -1395,7 +1435,7 @@ export default function Home() {
 
                 {/* Numero + Serie */}
                 <div>
-                  <span style={label}>Numero {juegoSeleccionado.serie_digits > 0 && '— Serie'}</span>
+                  <span style={label}>Número {juegoSeleccionado.serie_digits > 0 && '— Serie'}</span>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                     <input
                       type="text" maxLength={juegoSeleccionado.numero_digits || 4} placeholder="0000" value={numero}
@@ -1421,7 +1461,7 @@ export default function Home() {
                     <span style={label}>Signo zodiacal</span>
                     <select value={signo} onChange={e => { setSigno(e.target.value); setResultado(null); }} style={{ width: '100%', backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '11px 10px', fontSize: 13, color: '#E0F2FE', outline: 'none' }}>
                       <option value="" style={{ backgroundColor: COLOR_CARD }}>Selecciona signo</option>
-                      {['Aries','Tauro','Geminis','Cancer','Leo','Virgo','Libra','Escorpio','Sagitario','Capricornio','Acuario','Piscis'].map(s => <option key={s} style={{ backgroundColor: COLOR_CARD }}>{s}</option>)}
+                      {['Aries','Tauro','Géminis','Cáncer','Leo','Virgo','Libra','Escorpio','Sagitario','Capricornio','Acuario','Piscis'].map(s => <option key={s} style={{ backgroundColor: COLOR_CARD }}>{s}</option>)}
                     </select>
                   </div>
                 )}
@@ -1566,7 +1606,7 @@ export default function Home() {
                         {resultado.mensaje && <p style={{ fontSize: 13, color: '#FDE68A', marginTop: 6, fontWeight: 600 }}>{resultado.mensaje}</p>}
                         {resultado?.mostrarEditar && (
                           <button onClick={abrirEdicionDesdeResultado} style={{ marginTop: 10, backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '10px 14px', color: '#1A1500', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                            Editar este numero
+                            Editar este número
                           </button>
                         )}
                       </div>
@@ -1575,11 +1615,11 @@ export default function Home() {
                     {resultado.tipo !== 'error' && (
                       <div style={{ padding: '16px 20px', backgroundColor: COLOR_FONDO, display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {[
-                          { lbl: 'Numero', val: `${numero.padStart(juegoSeleccionado.numero_digits || 4, '0')}${serie ? ' – ' + serie.toUpperCase() : ''}` },
+                          { lbl: 'Número', val: `${numero.padStart(juegoSeleccionado.numero_digits || 4, '0')}${serie ? ' – ' + serie.toUpperCase() : ''}` },
                           fraccionesSeleccionadas.length > 0 && { lbl: 'Fracciones', val: fraccionesSeleccionadas.join(', ') },
                           { lbl: 'Juego', val: juegoSeleccionado.nombre },
                           fechaSorteo && { lbl: 'Fecha', val: fechaSorteo },
-                          resultado.sorteo && { lbl: 'Numero ganador', val: `${resultado.sorteo.numero}${resultado.sorteo.serie ? ' – ' + resultado.sorteo.serie : ''}` },
+                          resultado.sorteo && { lbl: 'Número ganador', val: `${resultado.sorteo.numero}${resultado.sorteo.serie ? ' – ' + resultado.sorteo.serie : ''}` },
                         ].filter(Boolean).map(({ lbl, val }) => (
                           <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, paddingBottom: 10, borderBottom: `1px solid ${COLOR_BORDE}` }}>
                             <span style={{ color: COLOR_TEXTO_SEC }}>{lbl}</span>
@@ -1587,7 +1627,7 @@ export default function Home() {
                           </div>
                         ))}
                         {hayEscaneados && resultado.tipo !== 'warning' && (
-                          <p style={{ fontSize: 12, color: '#10B981', textAlign: 'center', marginTop: 4 }}>✓ Guardado automaticamente</p>
+                          <p style={{ fontSize: 12, color: '#10B981', textAlign: 'center', marginTop: 4 }}>✓ Guardado automáticamente</p>
                         )}
                       </div>
                     )}
@@ -1600,8 +1640,8 @@ export default function Home() {
                     <div style={{ width: 64, height: 64, backgroundColor: COLOR_CARD, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                       <Search size={28} color={COLOR_BORDE} />
                     </div>
-                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 15, fontWeight: 500 }}>Ingresa un numero para verificar</p>
-                    <p style={{ color: COLOR_TEXTO_TERC, fontSize: 13, marginTop: 8 }}>o escanea tu boleto con la camara</p>
+                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 15, fontWeight: 500 }}>Ingresa un número para verificar</p>
+                    <p style={{ color: COLOR_TEXTO_TERC, fontSize: 13, marginTop: 8 }}>o escanea tu boleto con la cámara</p>
                   </div>
                 )}
               </div>
@@ -1617,10 +1657,10 @@ export default function Home() {
                   <div style={{ width: 72, height: 72, backgroundColor: COLOR_CARD, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                     <Ticket size={32} color={COLOR_BORDE} />
                   </div>
-                  <p style={{ color: COLOR_TEXTO_SEC, fontSize: 16, fontWeight: 500, marginBottom: 8 }}>Inicia sesion para guardar boletos</p>
-                  <p style={{ color: COLOR_TEXTO_TERC, fontSize: 13, marginBottom: 28 }}>Recibiras notificaciones con los resultados</p>
+                  <p style={{ color: COLOR_TEXTO_SEC, fontSize: 16, fontWeight: 500, marginBottom: 8 }}>Inicia sesión para guardar boletos</p>
+                  <p style={{ color: COLOR_TEXTO_TERC, fontSize: 13, marginBottom: 28 }}>Recibirás notificaciones con los resultados</p>
                   <button onClick={() => window.location.href = '/login'} style={{ backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '13px 36px', color: '#1A1500', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
-                    Iniciar sesion
+                    Iniciar sesión
                   </button>
                 </div>
               ) : (
@@ -1651,8 +1691,8 @@ export default function Home() {
                     {pendientes.length >= getLimite() && perfil?.plan !== 'premium' && (
                       <button onClick={() => setMostrarPremium(true)} style={{ width: '100%', backgroundColor: 'transparent', border: `1.5px dashed ${COLOR_BORDE}`, borderRadius: 16, padding: 24, textAlign: 'center', cursor: 'pointer', marginTop: 14 }}>
                         <Crown size={28} color={COLOR_ACENTO} style={{ margin: '0 auto 10px', display: 'block' }} />
-                        <p style={{ color: '#E0F2FE', fontSize: 15, fontWeight: 700 }}>Guarda mas boletos pendientes</p>
-                        <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, marginTop: 6 }}>Actualiza tu plan para aumentar el limite</p>
+                        <p style={{ color: '#E0F2FE', fontSize: 15, fontWeight: 700 }}>Guarda más boletos pendientes</p>
+                        <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, marginTop: 6 }}>Actualiza tu plan para aumentar el límite</p>
                       </button>
                     )}
                   </div>
@@ -1660,7 +1700,7 @@ export default function Home() {
                   <div>
                     <span style={label}>Historial verificado</span>
                     {historicos.length === 0 ? (
-                      <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, marginTop: 10 }}>Aun no tienes boletos verificados</p>
+                      <p style={{ color: COLOR_TEXTO_SEC, fontSize: 14, marginTop: 10 }}>Aún no tienes boletos verificados</p>
                     ) : (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, marginTop: 10 }}>
                         {historicos.map((b) => (
@@ -1697,8 +1737,8 @@ export default function Home() {
                     <div style={{ width: 72, height: 72, backgroundColor: COLOR_CARD, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                       <Settings size={32} color={COLOR_BORDE} />
                     </div>
-                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 15, marginBottom: 28 }}>Inicia sesion para configurar tu cuenta</p>
-                    <button onClick={() => window.location.href = '/login'} style={{ backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '13px 36px', color: '#1A1500', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Iniciar sesion</button>
+                    <p style={{ color: COLOR_TEXTO_SEC, fontSize: 15, marginBottom: 28 }}>Inicia sesión para configurar tu cuenta</p>
+                    <button onClick={() => window.location.href = '/login'} style={{ backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 10, padding: '13px 36px', color: '#1A1500', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Iniciar sesión</button>
                   </div>
                 ) : (
                   <>
@@ -1719,7 +1759,7 @@ export default function Home() {
                       </button>
                     )}
                     <button onClick={cerrarSesion} style={{ width: '100%', backgroundColor: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '14px', color: COLOR_TEXTO_SEC, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      <LogOut size={16} /> Cerrar sesion
+                      <LogOut size={16} /> Cerrar sesión
                     </button>
                   </>
                 )}
@@ -1730,9 +1770,9 @@ export default function Home() {
                   <div style={{ backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, overflow: 'hidden' }}>
                     <p style={{ fontSize: 11, fontWeight: 600, color: COLOR_TEXTO_SEC, textTransform: 'uppercase', letterSpacing: 1, padding: '16px 18px 14px', borderBottom: `1px solid ${COLOR_BORDE}` }}>Notificaciones</p>
                     {[
-                      { key: 'notif_correo', lbl: 'Por correo electronico', icon: '✉️', desc: 'Recibe resultados en tu correo' },
+                      { key: 'notif_correo', lbl: 'Por correo electrónico', icon: '✉️', desc: 'Recibe resultados en tu correo' },
                       { key: 'notif_push', lbl: 'Notificaciones push', icon: '🔔', desc: 'Alertas en tu celular' },
-                      { key: 'notif_solo_ganadores', lbl: 'Solo si gane', icon: '🏆', desc: 'Solo notifica premios y secos' },
+                      { key: 'notif_solo_ganadores', lbl: 'Solo si gané', icon: '🏆', desc: 'Solo notifica premios y secos' },
                     ].map(({ key, lbl, icon, desc }) => (
                       <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', borderTop: `1px solid ${COLOR_BORDE}` }}>
                         <span style={{ fontSize: 22, flexShrink: 0 }}>{icon}</span>
@@ -1788,11 +1828,11 @@ export default function Home() {
             {[
               { id: 'inicio', label: 'Inicio', icon: HomeIcon },
               { id: 'loterias', label: 'Juegos & Resultados', icon: Ticket },
-              { id: 'verificar', label: 'Verificar/Guardar', icon: Search },
-              { id: 'numeros', label: 'Mis Numeros', icon: Ticket },
+              { id: 'verificar', label: 'Verificar / Guardar', icon: Search },
+              { id: 'numeros', label: 'Mis Números', icon: Ticket },
             ].map(({ id, label: lbl, icon: Icon }) => (
-              <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: '14px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, border: 'none', borderTop: tab === id ? `3px solid ${COLOR_ACENTO}` : 'none', cursor: 'pointer', backgroundColor: 'transparent', color: tab === id ? COLOR_ACENTO : COLOR_TEXTO_SEC, transition: 'all 0.2s' }}>
-                <Icon size={20} />
+              <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: '14px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, fontSize: 17, fontWeight: 600, border: 'none', borderTop: tab === id ? `3px solid ${COLOR_ACENTO}` : 'none', cursor: 'pointer', backgroundColor: 'transparent', color: tab === id ? COLOR_ACENTO : COLOR_TEXTO_SEC, transition: 'all 0.2s' }}>
+                <Icon size={24} />
                 {lbl}
               </button>
             ))}

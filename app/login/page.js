@@ -72,11 +72,11 @@ export default function Login() {
       if (!form.nombre.trim()) { setError('Ingresa tu nombre completo.'); return; }
       if (!form.fechaNacimiento) { setError('Ingresa tu fecha de nacimiento.'); return; }
       if (calcularEdad(form.fechaNacimiento) < 18) {
-        setError('Debes tener 18 anos o mas para registrarte. Los juegos de azar estan prohibidos para menores de edad.');
+        setError('Debes tener 18 años o más para registrarte. Los juegos de azar están prohibidos para menores de edad.');
         return;
       }
-      if (!form.terminos) { setError('Debes aceptar los terminos y condiciones.'); return; }
-      if (form.password.length < 8) { setError('La contrasena debe tener al menos 8 caracteres.'); return; }
+      if (!form.terminos) { setError('Debes aceptar los términos y condiciones.'); return; }
+      if (form.password.length < 8) { setError('La contraseña debe tener al menos 8 caracteres.'); return; }
     }
 
     setCargando(true);
@@ -96,7 +96,7 @@ export default function Login() {
 
         if (authError) {
           setError(authError.message === 'User already registered'
-            ? 'Este correo ya esta registrado. Intenta iniciar sesion.'
+            ? 'Este correo ya está registrado. Intenta iniciar sesión.'
             : authError.message);
         } else {
           if (signUpData?.user?.id) {
@@ -104,7 +104,7 @@ export default function Login() {
               fecha_nacimiento: form.fechaNacimiento,
             }).eq('id', signUpData.user.id);
           }
-          setMensaje('Cuenta creada! Ya puedes iniciar sesion.');
+          setMensaje('Cuenta creada! Ya puedes iniciar sesión.');
           setModo('login');
         }
       } else {
@@ -114,7 +114,7 @@ export default function Login() {
         });
 
         if (authError) {
-          setError('Correo o contrasena incorrectos.');
+          setError('Correo o contraseña incorrectos.');
         } else {
           window.location.href = '/';
         }
@@ -194,12 +194,12 @@ export default function Login() {
             <p style={{ color: '#fff', fontWeight: 800, fontSize: 22, letterSpacing: -0.5 }}>NotiLoto</p>
             <p style={{ color: COLOR_ACENTO, fontSize: 12, fontWeight: 500, marginTop: 3 }}>Colombia</p>
             <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, marginTop: 8 }}>
-              {modo === 'login' ? 'Inicia sesion en tu cuenta' : 'Crea tu cuenta gratis'}
+              {modo === 'login' ? 'Inicia sesión en tu cuenta' : 'Crea tu cuenta gratis'}
             </p>
           </div>
 
           <div style={{ display: 'flex', padding: '16px 24px 0' }}>
-            {[{ id: 'login', label: 'Iniciar sesion' }, { id: 'registro', label: 'Registrarse' }].map(t => (
+            {[{ id: 'login', label: 'Iniciar sesión' }, { id: 'registro', label: 'Registrarse' }].map(t => (
               <button
                 key={t.id}
                 onClick={() => { setModo(t.id); setError(null); setMensaje(null); }}
@@ -238,7 +238,7 @@ export default function Login() {
               )}
 
               <div>
-                <span style={labelStyle}>Correo electronico</span>
+                <span style={labelStyle}>Correo electrónico</span>
                 <div style={{ position: 'relative' }}>
                   <Mail size={16} color={COLOR_TEXTO_SEC} style={{ position: 'absolute', left: 14, top: 14 }} />
                   <input
@@ -254,14 +254,14 @@ export default function Login() {
               </div>
 
               <div>
-                <span style={labelStyle}>Contrasena {modo === 'registro' && '(minimo 8 caracteres)'}</span>
+                <span style={labelStyle}>Contraseña {modo === 'registro' && '(mínimo 8 caracteres)'}</span>
                 <div style={{ position: 'relative' }}>
                   <Lock size={16} color={COLOR_TEXTO_SEC} style={{ position: 'absolute', left: 14, top: 14 }} />
                   <input
                     type={verPass ? 'text' : 'password'}
                     name="password"
                     autoComplete={modo === 'registro' ? 'new-password' : 'current-password'}
-                    placeholder={modo === 'registro' ? 'Minimo 8 caracteres' : 'Tu contrasena'}
+                    placeholder={modo === 'registro' ? 'Mínimo 8 caracteres' : 'Tu contraseña'}
                     value={form.password}
                     onChange={e => setField('password', e.target.value)}
                     style={{ ...inputStyle, paddingRight: 44 }}
@@ -277,7 +277,7 @@ export default function Login() {
                 {modo === 'login' && (
                   <p style={{ textAlign: 'right', marginTop: 8 }}>
                     <a href="/recuperar" style={{ fontSize: 12, color: COLOR_ACENTO, textDecoration: 'none' }}>
-                      Olvidaste tu contrasena?
+                      Olvidaste tu contraseña?
                     </a>
                   </p>
                 )}
@@ -319,7 +319,7 @@ export default function Login() {
                     {form.terminos && <span style={{ color: '#1A1500', fontSize: 12, fontWeight: 700 }}>✓</span>}
                   </button>
                   <p style={{ fontSize: 12, color: COLOR_TEXTO_SEC, lineHeight: 1.5 }}>
-                    Acepto los <span style={{ color: COLOR_ACENTO, cursor: 'pointer' }}>terminos y condiciones</span> y la <span style={{ color: COLOR_ACENTO, cursor: 'pointer' }}>politica de privacidad</span>. Confirmo que tengo 18 anos o mas.
+                    Acepto los <span style={{ color: COLOR_ACENTO, cursor: 'pointer' }}>términos y condiciones</span> y la <span style={{ color: COLOR_ACENTO, cursor: 'pointer' }}>política de privacidad</span>. Confirmo que tengo 18 años o más.
                   </p>
                 </div>
               )}
@@ -347,7 +347,7 @@ export default function Login() {
                   boxShadow: '0 4px 24px rgba(255,215,0,0.25)',
                 }}
               >
-                {cargando ? 'Cargando...' : modo === 'login' ? 'Iniciar sesion' : 'Crear cuenta'}
+                {cargando ? 'Cargando...' : modo === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
               </button>
 
               <button
@@ -355,7 +355,7 @@ export default function Login() {
                 onClick={() => window.location.href = '/'}
                 style={{ width: '100%', backgroundColor: 'transparent', border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px', fontSize: 13, color: COLOR_TEXTO_SEC, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               >
-                <ArrowLeft size={14} /> Volver sin iniciar sesion
+                <ArrowLeft size={14} /> Volver sin iniciar sesión
               </button>
 
             </div>
