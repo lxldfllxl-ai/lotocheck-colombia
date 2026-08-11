@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '../../../../../lib/supabaseAdmin';
-import { normalizePhoneNumber, isPhoneNumberValid } from '../../../../../lib/sms';
+import { supabaseAdmin } from '../../../../lib/supabaseAdmin';
+import { normalizePhoneNumber, isPhoneNumberValid } from '../../../../lib/sms';
 
 export async function POST(request) {
   try {
