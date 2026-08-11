@@ -30,6 +30,12 @@ export default function Home() {
   const [configLimites, setConfigLimites] = useState({ gratis: 2, basico: 10, pro: 25 });
   const [nombresPlanes, setNombresPlanes] = useState({ gratis: 'Gratis', basico: 'Basico', pro: 'Pro', premium: 'Premium' });
   const [noticias, setNoticias] = useState([]);
+  const [telefonoInput, setTelefonoInput] = useState('');
+  const [codigoTelefono, setCodigoTelefono] = useState('');
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [smsVerifyLoading, setSmsVerifyLoading] = useState(false);
+  const [smsFeedback, setSmsFeedback] = useState('');
+  const [smsError, setSmsError] = useState('');
   const [cargandoNoticias, setCargandoNoticias] = useState(true);
   const [notificacionesUI, setNotificacionesUI] = useState([]); // toasts efímeros (auto-desaparecen)
   const [notificacionesPersist, setNotificacionesPersist] = useState([]); // notificaciones guardadas en Supabase
@@ -39,12 +45,12 @@ export default function Home() {
   const [mostrarNotificacionesPanel, setMostrarNotificacionesPanel] = useState(false);
   const [mostrarBannerPush, setMostrarBannerPush] = useState(false); // Banner para sugerir activar push en este dispositivo
 
-  // Vista de loterías / juegos
+  // Vista de loterias / juegos
   const [juegoDetalle, setJuegoDetalle] = useState(null); // juego seleccionado para ver detalle
-  const [historicoSorteos, setHistoricoSorteos] = useState([]); // sorteos históricos del juego seleccionado
+  const [historicoSorteos, setHistoricoSorteos] = useState([]); // sorteos historicos del juego seleccionado
   const [cargandoHistorico, setCargandoHistorico] = useState(false);
-  const [verHistorico, setVerHistorico] = useState(false); // toggle para mostrar histórico
-  const [historicoVisible, setHistoricoVisible] = useState(5); // cuántos sorteos mostrar (paginación)
+  const [verHistorico, setVerHistorico] = useState(false); // toggle para mostrar historico
+  const [historicoVisible, setHistoricoVisible] = useState(5); // cuantos sorteos mostrar (paginacion)
   const [verPlanPremios, setVerPlanPremios] = useState(false); // toggle para mostrar plan de premios
 
   // Cola de boletos escaneados con estado individual
@@ -199,12 +205,80 @@ export default function Home() {
 
   async function cargarPerfil(userId) {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (data) setPerfil(data);
+    if (data) {
+      setPerfil(data);
+      setTelefonoInput(data.telefono || '');
+    }
   }
 
   async function cargarBoletos(userId) {
     const { data } = await supabase.from('boletos').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (data) setBoletos(data);
+  }
+
+  async function enviarCodigoTelefono() {
+    if (!usuario) return;
+    setSmsFeedback('');
+    setSmsError('');
+    const telefono = telefonoInput.trim();
+    if (!telefono) {
+      setSmsError('Ingresa un número de teléfono.');
+      return;
+    }
+    setSmsLoading(true);
+    try {
+      const { data, error } = await fetch('/api/telefono/enviar-codigo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data?.session?.access_token || ''}`,
+        },
+        body: JSON.stringify({ telefono }),
+      }).then(r => r.json());
+      if (error) {
+        setSmsError(error);
+      } else {
+        setSmsFeedback('Código enviado. Revisa tu SMS y verifica el número.');
+      }
+    } catch (err) {
+      console.error('Error enviando código SMS:', err);
+      setSmsError('No se pudo enviar el código. Intenta de nuevo.');
+    } finally {
+      setSmsLoading(false);
+    }
+  }
+
+  async function verificarCodigoTelefono() {
+    if (!usuario) return;
+    setSmsFeedback('');
+    setSmsError('');
+    const codigo = codigoTelefono.trim();
+    if (!codigo) {
+      setSmsError('Ingresa el código de verificación.');
+      return;
+    }
+    setSmsVerifyLoading(true);
+    try {
+      const { data, error } = await fetch('/api/telefono/verificar-codigo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data?.session?.access_token || ''}`,
+        },
+        body: JSON.stringify({ codigo }),
+      }).then(r => r.json());
+      if (error) {
+        setSmsError(error);
+      } else {
+        setSmsFeedback('Número verificado correctamente. Ahora recibirás SMS con resultados.');
+        await cargarPerfil(usuario.id);
+      }
+    } catch (err) {
+      console.error('Error verificando SMS:', err);
+      setSmsError('No se pudo verificar el código. Intenta de nuevo.');
+    } finally {
+      setSmsVerifyLoading(false);
+    }
   }
 
   async function cargarResultados() {
@@ -293,7 +367,7 @@ export default function Home() {
     setBoletosEscaneados(normalizados);
     setIndiceSeleccionado(null);
     setTab('verificar');
-    // Seleccionar el primero automáticamente
+    // Seleccionar el primero automaticamente
     setTimeout(() => seleccionarBoletoEscaneado_directo(normalizados, 0), 100);
   }
 
@@ -332,7 +406,7 @@ export default function Home() {
     if (!fecha) return null;
     const corte = '2026-06-01';
     return fecha < corte ? {
-      titulo: 'Resultados disponibles a partir de junio de 2026',
+      titulo: 'Resultados disponibles a partir de Junio 2026',
       mensaje: ''
     } : null;
   }
@@ -903,6 +977,17 @@ export default function Home() {
         addNotificacion({ tipo: 'success', titulo: 'Push desactivado', mensaje: 'No recibirás más alertas push. Al reactivar, todos tus dispositivos funcionarán sin volver a dar permiso.' });
       }
       return;
+    }
+
+    if (key === 'notif_sms' && nuevo) {
+      if (perfil?.plan === 'gratis') {
+        addNotificacion({ tipo: 'warning', titulo: 'SMS no disponible', mensaje: 'Las notificaciones por SMS solo están disponibles en planes de pago.' });
+        return;
+      }
+      if (!perfil?.telefono_verificado) {
+        addNotificacion({ tipo: 'warning', titulo: 'Verifica tu teléfono', mensaje: 'Debes verificar tu número antes de activar notificaciones SMS.' });
+        return;
+      }
     }
 
     const { error } = await actualizarPerfil({ [key]: nuevo });
@@ -1772,6 +1857,7 @@ export default function Home() {
                     {[
                       { key: 'notif_correo', lbl: 'Por correo electrónico', icon: '✉️', desc: 'Recibe resultados en tu correo' },
                       { key: 'notif_push', lbl: 'Notificaciones push', icon: '🔔', desc: 'Alertas en tu celular' },
+                      { key: 'notif_sms', lbl: 'Notificaciones SMS', icon: '📱', desc: 'Recibe resultados por SMS' },
                       { key: 'notif_solo_ganadores', lbl: 'Solo si gané', icon: '🏆', desc: 'Solo notifica premios y secos' },
                     ].map(({ key, lbl, icon, desc }) => (
                       <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', borderTop: `1px solid ${COLOR_BORDE}` }}>
@@ -1785,6 +1871,53 @@ export default function Home() {
                         </button>
                       </div>
                     ))}
+                  </div>
+                  <div style={{ backgroundColor: COLOR_CARD, border: `1px solid ${COLOR_BORDE}`, borderRadius: 16, padding: 18, display: 'grid', gap: 16 }}>
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: COLOR_TEXTO_SEC, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>SMS</p>
+                      <p style={{ fontSize: 13, color: COLOR_TEXTO_SEC, margin: 0 }}>Agrega y verifica tu número para recibir resultados por SMS. Disponible solo en planes pagados.</p>
+                    </div>
+                    {perfil?.plan === 'gratis' ? (
+                      <div style={{ backgroundColor: '#111f34', borderRadius: 14, padding: 16 }}>
+                        <p style={{ color: COLOR_TEXTO_SEC, fontSize: 13, margin: 0 }}>Tu plan gratuito no permite activar SMS. Actualiza a un plan pagado para habilitarlo.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'grid', gap: 10 }}>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: COLOR_TEXTO_SEC }}>Número de teléfono</label>
+                          <input
+                            type="tel"
+                            value={telefonoInput}
+                            onChange={(e) => setTelefonoInput(e.target.value)}
+                            placeholder="Ej. +573001234567"
+                            style={{ width: '100%', backgroundColor: COLOR_FONDO, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px 14px', color: '#fff', outline: 'none' }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                          <button onClick={enviarCodigoTelefono} disabled={smsLoading} style={{ flex: 1, minWidth: 150, backgroundColor: COLOR_ACENTO, border: 'none', borderRadius: 12, padding: '12px 14px', color: '#1A1500', fontWeight: 700, cursor: 'pointer' }}>
+                            {smsLoading ? 'Enviando...' : 'Enviar código'}
+                          </button>
+                          <button onClick={verificarCodigoTelefono} disabled={smsVerifyLoading} style={{ flex: 1, minWidth: 150, backgroundColor: '#0a4a7a', border: 'none', borderRadius: 12, padding: '12px 14px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                            {smsVerifyLoading ? 'Verificando...' : 'Verificar código'}
+                          </button>
+                        </div>
+                        <div style={{ display: 'grid', gap: 10 }}>
+                          <label style={{ fontSize: 12, fontWeight: 700, color: COLOR_TEXTO_SEC }}>Código de verificación</label>
+                          <input
+                            type="text"
+                            value={codigoTelefono}
+                            onChange={(e) => setCodigoTelefono(e.target.value)}
+                            placeholder="Código de 6 dígitos"
+                            style={{ width: '100%', backgroundColor: COLOR_FONDO, border: `1px solid ${COLOR_BORDE}`, borderRadius: 12, padding: '12px 14px', color: '#fff', outline: 'none' }}
+                          />
+                        </div>
+                        {smsFeedback && <p style={{ color: '#7ED957', fontSize: 13, margin: 0 }}>{smsFeedback}</p>}
+                        {smsError && <p style={{ color: '#F87171', fontSize: 13, margin: 0 }}>{smsError}</p>}
+                        <p style={{ fontSize: 12, color: COLOR_TEXTO_SEC, margin: 0 }}>
+                          Estado: {perfil?.telefono_verificado ? 'Número verificado' : 'Número sin verificar'}{perfil?.telefono ? ` · ${perfil.telefono}` : ''}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
